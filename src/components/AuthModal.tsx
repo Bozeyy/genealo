@@ -29,45 +29,96 @@ export default function AuthModal({ onClose, onSuccess }: AuthModalProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl p-6 w-full max-w-sm">
-        <h2 className="text-xl font-semibold text-white mb-4">Déverrouiller l'édition</h2>
-        <p className="text-sm text-slate-400 mb-6">
-          Veuillez entrer le code PIN pour modifier l'arbre généalogique.
-        </p>
-        
-        <form onSubmit={handleSubmit} className="space-y-4">
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0,
+        background: 'rgba(0,0,0,0.6)',
+        backdropFilter: 'blur(6px)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        zIndex: 200,
+      }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: 'rgba(20,22,28,0.95)',
+          border: '1px solid rgba(255,255,255,0.1)',
+          borderRadius: '16px',
+          padding: '2rem',
+          width: '100%',
+          maxWidth: '400px',
+          margin: '1rem',
+          boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+          <div>
+            <h2 style={{ margin: 0, fontSize: '1.25rem', color: '#fff' }}>🔓 Déverrouiller l'édition</h2>
+            <p style={{ margin: '4px 0 0', fontSize: '0.875rem', color: '#a0aab2' }}>
+              Veuillez entrer le code PIN pour modifier l'arbre généalogique.
+            </p>
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#a0aab2', cursor: 'pointer', fontSize: '1.2rem' }}>✕</button>
+        </div>
+
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           <div>
             <input
               type="password"
               value={pin}
               onChange={(e) => setPin(e.target.value)}
               placeholder="Code PIN"
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-shadow text-center tracking-widest text-lg"
+              style={{
+                width: '100%',
+                padding: '0.75rem',
+                borderRadius: '8px',
+                border: '1px solid rgba(255,255,255,0.1)',
+                background: 'rgba(255,255,255,0.05)',
+                color: '#fff',
+                fontFamily: 'inherit',
+                fontSize: '1.2rem',
+                textAlign: 'center',
+                letterSpacing: '0.2em',
+                boxSizing: 'border-box',
+              }}
               autoFocus
             />
           </div>
-          
-          {error && <p className="text-red-400 text-sm text-center">{error}</p>}
 
-          <div className="flex gap-3 justify-end mt-6">
+          {error && <p style={{ color: '#f87171', fontSize: '0.875rem', margin: 0, textAlign: 'center' }}>{error}</p>}
+
+          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-lg bg-slate-800 text-slate-300 hover:bg-slate-700 transition-colors"
+              style={{
+                padding: '0.75rem 1.25rem',
+                borderRadius: '8px',
+                border: '1px solid rgba(255,255,255,0.1)',
+                background: 'rgba(255,255,255,0.05)',
+                color: '#e2e8f0',
+                cursor: 'pointer',
+                fontWeight: '500',
+              }}
             >
               Annuler
             </button>
             <button
               type="submit"
               disabled={loading || !pin}
-              className="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-500 transition-colors disabled:opacity-50 flex items-center gap-2"
+              style={{
+                padding: '0.75rem 1.25rem',
+                background: 'linear-gradient(135deg, #10b981, #059669)',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '8px',
+                fontWeight: '600',
+                cursor: (loading || !pin) ? 'not-allowed' : 'pointer',
+                opacity: (loading || !pin) ? 0.5 : 1,
+              }}
             >
-              {loading ? (
-                <span className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-              ) : (
-                'Déverrouiller'
-              )}
+              {loading ? 'Vérification...' : 'Déverrouiller'}
             </button>
           </div>
         </form>
