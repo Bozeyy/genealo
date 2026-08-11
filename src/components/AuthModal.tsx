@@ -29,37 +29,16 @@ export default function AuthModal({ onClose, onSuccess }: AuthModalProps) {
   };
 
   return (
-    <div
-      onClick={onClose}
-      style={{
-        position: 'fixed', inset: 0,
-        background: 'rgba(0,0,0,0.6)',
-        backdropFilter: 'blur(6px)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        zIndex: 200,
-      }}
-    >
-      <div
-        onClick={e => e.stopPropagation()}
-        style={{
-          background: 'rgba(20,22,28,0.95)',
-          border: '1px solid rgba(255,255,255,0.1)',
-          borderRadius: '16px',
-          padding: '2rem',
-          width: '100%',
-          maxWidth: '400px',
-          margin: '1rem',
-          boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
-        }}
-      >
+    <div onClick={onClose} className="modal-overlay">
+      <div onClick={e => e.stopPropagation()} className="modal-card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
           <div>
-            <h2 style={{ margin: 0, fontSize: '1.25rem', color: '#fff' }}>🔓 Déverrouiller l'édition</h2>
-            <p style={{ margin: '4px 0 0', fontSize: '0.875rem', color: '#a0aab2' }}>
+            <h2 style={{ margin: 0, fontSize: '1.25rem', color: 'var(--text-primary)' }}>🔓 Déverrouiller l'édition</h2>
+            <p style={{ margin: '4px 0 0', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
               Veuillez entrer le code PIN pour modifier l'arbre généalogique.
             </p>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#a0aab2', cursor: 'pointer', fontSize: '1.2rem' }}>✕</button>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1.2rem' }}>✕</button>
         </div>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -69,53 +48,30 @@ export default function AuthModal({ onClose, onSuccess }: AuthModalProps) {
               value={pin}
               onChange={(e) => setPin(e.target.value)}
               placeholder="Code PIN"
+              className="input-field"
               style={{
-                width: '100%',
-                padding: '0.75rem',
-                borderRadius: '8px',
-                border: '1px solid rgba(255,255,255,0.1)',
-                background: 'rgba(255,255,255,0.05)',
-                color: '#fff',
-                fontFamily: 'inherit',
                 fontSize: '1.2rem',
                 textAlign: 'center',
                 letterSpacing: '0.2em',
-                boxSizing: 'border-box',
               }}
               autoFocus
             />
           </div>
 
-          {error && <p style={{ color: '#f87171', fontSize: '0.875rem', margin: 0, textAlign: 'center' }}>{error}</p>}
+          {error && <p style={{ color: '#b03c3c', fontSize: '0.875rem', margin: 0, textAlign: 'center' }}>{error}</p>}
 
           <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end' }}>
-            <button
-              type="button"
-              onClick={onClose}
-              style={{
-                padding: '0.75rem 1.25rem',
-                borderRadius: '8px',
-                border: '1px solid rgba(255,255,255,0.1)',
-                background: 'rgba(255,255,255,0.05)',
-                color: '#e2e8f0',
-                cursor: 'pointer',
-                fontWeight: '500',
-              }}
-            >
+            <button type="button" onClick={onClose} className="btn-secondary">
               Annuler
             </button>
             <button
               type="submit"
               disabled={loading || !pin}
+              className="btn-primary"
               style={{
-                padding: '0.75rem 1.25rem',
-                background: 'linear-gradient(135deg, #10b981, #059669)',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '8px',
-                fontWeight: '600',
-                cursor: (loading || !pin) ? 'not-allowed' : 'pointer',
+                background: 'linear-gradient(135deg, #7a9b6d, #5a8a48)',
                 opacity: (loading || !pin) ? 0.5 : 1,
+                cursor: (loading || !pin) ? 'not-allowed' : 'pointer',
               }}
             >
               {loading ? 'Vérification...' : 'Déverrouiller'}

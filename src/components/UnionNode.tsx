@@ -19,8 +19,8 @@ function UnionNode({ data, selected }: NodeProps<UnionNodeData>) {
   const [showMenu, setShowMenu] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const isSep = Boolean(data.isSeparated);
+  const hasActions = data.onAddChild || data.onDeleteCouple;
 
-  // Close popup when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
@@ -34,7 +34,7 @@ function UnionNode({ data, selected }: NodeProps<UnionNodeData>) {
   return (
     <div
       ref={containerRef}
-      onMouseEnter={() => setShowMenu(true)}
+      onMouseEnter={() => hasActions && setShowMenu(true)}
       onMouseLeave={() => setShowMenu(false)}
       style={{
         position: 'relative',
@@ -54,16 +54,16 @@ function UnionNode({ data, selected }: NodeProps<UnionNodeData>) {
           height: 28,
           borderRadius: '50%',
           background: isSep
-            ? 'linear-gradient(135deg, #f59e0b, #d97706)'
-            : 'linear-gradient(135deg, #a78bfa, #ec4899)',
+            ? 'linear-gradient(135deg, #c49a3c, #a88030)'
+            : 'linear-gradient(135deg, #c0785a, #a06040)',
           border: selected
-            ? '2px solid #fff'
+            ? '2px solid var(--text-primary)'
             : isSep
-            ? '2px dashed rgba(255,255,255,0.9)'
-            : '2px solid rgba(255,255,255,0.9)',
+            ? '2px dashed rgba(60,46,28,0.6)'
+            : '2px solid rgba(60,46,28,0.5)',
           boxShadow: isSep
-            ? '0 0 14px rgba(245,158,11,0.8)'
-            : '0 0 14px rgba(236,72,153,0.8)',
+            ? '0 0 10px rgba(196,154,60,0.5)'
+            : '0 0 10px rgba(192,120,90,0.5)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -83,7 +83,7 @@ function UnionNode({ data, selected }: NodeProps<UnionNodeData>) {
       <Handle type="target" position={Position.Right} id="union-right" style={{ opacity: 0 }} />
 
       {/* Action Popup */}
-      {showMenu && (
+      {showMenu && hasActions && (
         <div
           onClick={e => e.stopPropagation()}
           className="nopan nodrag"
@@ -98,20 +98,20 @@ function UnionNode({ data, selected }: NodeProps<UnionNodeData>) {
         >
           <div
             style={{
-              background: 'rgba(20,22,28,0.96)',
+              background: 'rgba(255,252,248,0.97)',
               backdropFilter: 'blur(16px)',
-              border: `1px solid ${isSep ? 'rgba(245,158,11,0.3)' : 'rgba(236,72,153,0.3)'}`,
+              border: `1px solid ${isSep ? 'rgba(196,154,60,0.3)' : 'rgba(192,120,90,0.3)'}`,
               borderRadius: '12px',
               padding: '12px 14px',
-              minWidth: '230px',
-              boxShadow: '0 12px 36px rgba(0,0,0,0.6)',
-              color: '#f8f9fa',
+              minWidth: '220px',
+              boxShadow: '0 8px 28px rgba(60,46,28,0.15)',
+              color: '#3d2e1c',
             }}
           >
             <div style={{
               fontSize: '11px',
               fontWeight: '700',
-              color: isSep ? '#f59e0b' : '#ec4899',
+              color: isSep ? '#a88030' : '#a06040',
               marginBottom: '8px',
               textTransform: 'uppercase',
               letterSpacing: '0.5px',
@@ -120,89 +120,91 @@ function UnionNode({ data, selected }: NodeProps<UnionNodeData>) {
               justifyContent: 'space-between',
             }}>
               <span>{isSep ? '💔 Union Séparée' : '💍 Union Familiale'}</span>
-              <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', background: isSep ? 'rgba(245,158,11,0.2)' : 'rgba(236,72,153,0.2)' }}>
+              <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', background: isSep ? 'rgba(196,154,60,0.15)' : 'rgba(192,120,90,0.15)' }}>
                 {isSep ? 'Séparés' : 'Unis'}
               </span>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  data.onAddChild?.(data.coupleId);
-                }}
-                style={{
-                  background: 'rgba(56,189,248,0.2)',
-                  border: '1px solid rgba(56,189,248,0.4)',
-                  borderRadius: '6px',
-                  padding: '7px 10px',
-                  color: '#38bdf8',
-                  fontSize: '12px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                }}
-              >
-                👶 Ajouter un enfant au couple
-              </button>
+              {data.onAddChild && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); data.onAddChild?.(data.coupleId); }}
+                  style={{
+                    background: 'rgba(122,155,109,0.12)',
+                    border: '1px solid rgba(122,155,109,0.3)',
+                    borderRadius: '8px',
+                    padding: '8px 10px',
+                    color: '#5a8a48',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    minHeight: '36px',
+                  }}
+                >
+                  👶 Ajouter un enfant au couple
+                </button>
+              )}
 
-              {/* Toggle Separation Status */}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  data.onToggleSeparated?.(data.coupleId, !isSep);
-                }}
-                style={{
-                  background: isSep ? 'rgba(167,139,250,0.2)' : 'rgba(245,158,11,0.2)',
-                  border: `1px solid ${isSep ? 'rgba(167,139,250,0.4)' : 'rgba(245,158,11,0.4)'}`,
-                  borderRadius: '6px',
-                  padding: '7px 10px',
-                  color: isSep ? '#c084fc' : '#fbbf24',
-                  fontSize: '12px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                }}
-              >
-                {isSep ? '💍 Marquer comme uni(e)s' : '💔 Marquer comme séparé(e)s'}
-              </button>
+              {data.onToggleSeparated && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); data.onToggleSeparated?.(data.coupleId, !isSep); }}
+                  style={{
+                    background: isSep ? 'rgba(192,120,90,0.12)' : 'rgba(196,154,60,0.12)',
+                    border: `1px solid ${isSep ? 'rgba(192,120,90,0.3)' : 'rgba(196,154,60,0.3)'}`,
+                    borderRadius: '8px',
+                    padding: '8px 10px',
+                    color: isSep ? '#a06040' : '#a88030',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    minHeight: '36px',
+                  }}
+                >
+                  {isSep ? '💍 Marquer comme uni(e)s' : '💔 Marquer comme séparé(e)s'}
+                </button>
+              )}
 
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (confirm('Dissoudre ce couple ? (Les enfants seront détachés, pas supprimés)')) {
-                    data.onDeleteCouple?.(data.coupleId);
-                  }
-                }}
-                style={{
-                  background: 'rgba(239,68,68,0.18)',
-                  border: '1px solid rgba(239,68,68,0.35)',
-                  borderRadius: '6px',
-                  padding: '7px 10px',
-                  color: '#f87171',
-                  fontSize: '12px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                }}
-              >
-                🗑️ Supprimer le couple
-              </button>
+              {data.onDeleteCouple && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (confirm('Dissoudre ce couple ? (Les enfants seront détachés, pas supprimés)')) {
+                      data.onDeleteCouple?.(data.coupleId);
+                    }
+                  }}
+                  style={{
+                    background: 'rgba(180,60,60,0.08)',
+                    border: '1px solid rgba(180,60,60,0.25)',
+                    borderRadius: '8px',
+                    padding: '8px 10px',
+                    color: '#b03c3c',
+                    fontSize: '12px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    minHeight: '36px',
+                  }}
+                >
+                  🗑️ Supprimer le couple
+                </button>
+              )}
             </div>
 
             {/* Children list */}
             {data.children && data.children.length > 0 && (
-              <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-                <div style={{ fontSize: '11px', color: '#a0aab2', marginBottom: '4px' }}>
+              <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px solid rgba(60,46,28,0.08)' }}>
+                <div style={{ fontSize: '11px', color: '#8a7560', marginBottom: '4px' }}>
                   Enfants du couple ({data.children.length}) :
                 </div>
                 {data.children.map(child => (
@@ -214,28 +216,28 @@ function UnionNode({ data, selected }: NodeProps<UnionNodeData>) {
                       justifyContent: 'space-between',
                       fontSize: '12px',
                       padding: '4px 0',
-                      color: '#e2e8f0',
+                      color: '#3d2e1c',
                     }}
                   >
                     <span>👶 {child.firstName} {child.lastName ?? ''}</span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        data.onRemoveChild?.(child.id);
-                      }}
-                      title="Détacher cet enfant"
-                      style={{
-                        background: 'rgba(239,68,68,0.2)',
-                        border: 'none',
-                        color: '#f87171',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                        fontSize: '11px',
-                        padding: '2px 6px',
-                      }}
-                    >
-                      ✕ Détacher
-                    </button>
+                    {data.onRemoveChild && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); data.onRemoveChild?.(child.id); }}
+                        title="Détacher cet enfant"
+                        style={{
+                          background: 'rgba(180,60,60,0.1)',
+                          border: 'none',
+                          color: '#b03c3c',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontSize: '11px',
+                          padding: '3px 6px',
+                          minHeight: '24px',
+                        }}
+                      >
+                        ✕ Détacher
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>

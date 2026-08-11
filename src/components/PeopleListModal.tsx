@@ -23,7 +23,6 @@ export default function PeopleListModal({ people, onClose, onEdit, onDelete }: P
   const handleFocusNode = (id: string) => {
     const node = getNode(id);
     if (node) {
-      // Center the view on this node
       setCenter(node.position.x + 100, node.position.y + 40, { zoom: 1, duration: 800 });
       onClose();
     }
@@ -35,38 +34,14 @@ export default function PeopleListModal({ people, onClose, onEdit, onDelete }: P
   };
 
   return (
-    <div
-      onClick={onClose}
-      style={{
-        position: 'fixed', inset: 0,
-        background: 'rgba(0,0,0,0.6)',
-        backdropFilter: 'blur(6px)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        zIndex: 200,
-      }}
-    >
-      <div
-        onClick={e => e.stopPropagation()}
-        style={{
-          background: 'rgba(20,22,28,0.95)',
-          border: '1px solid rgba(255,255,255,0.1)',
-          borderRadius: '16px',
-          padding: '1.5rem',
-          width: '100%',
-          maxWidth: '480px',
-          maxHeight: '80vh',
-          display: 'flex',
-          flexDirection: 'column',
-          margin: '1rem',
-          boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
-        }}
-      >
+    <div onClick={onClose} className="modal-overlay">
+      <div onClick={e => e.stopPropagation()} className="modal-card" style={{ maxHeight: '85vh' }}>
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
           <h2 style={{ margin: 0, fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            👥 Liste des membres <span style={{ fontSize: '0.85rem', color: '#a0aab2', fontWeight: 'normal' }}>({people.length})</span>
+            👥 Membres <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 'normal' }}>({people.length})</span>
           </h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#a0aab2', cursor: 'pointer', fontSize: '1.2rem' }}>✕</button>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1.2rem' }}>✕</button>
         </div>
 
         {/* Search */}
@@ -76,23 +51,14 @@ export default function PeopleListModal({ people, onClose, onEdit, onDelete }: P
             placeholder="Rechercher par nom..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            style={{
-              padding: '0.65rem 0.9rem',
-              borderRadius: '8px',
-              border: '1px solid rgba(255,255,255,0.1)',
-              background: 'rgba(255,255,255,0.05)',
-              color: '#f8f9fa',
-              fontFamily: 'inherit',
-              width: '100%',
-              boxSizing: 'border-box',
-            }}
+            className="input-field"
           />
         </div>
 
         {/* List */}
         <div style={{ overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '0.5rem', paddingRight: '4px' }}>
           {filteredPeople.length === 0 ? (
-            <p style={{ textAlign: 'center', color: '#a0aab2', margin: '2rem 0' }}>Aucun membre trouvé</p>
+            <p style={{ textAlign: 'center', color: 'var(--text-muted)', margin: '2rem 0' }}>Aucun membre trouvé</p>
           ) : (
             filteredPeople.map(p => {
               const initials = `${p.firstName.charAt(0)}${p.lastName ? p.lastName.charAt(0) : ''}`.toUpperCase();
@@ -106,30 +72,30 @@ export default function PeopleListModal({ people, onClose, onEdit, onDelete }: P
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    padding: '0.75rem 0.9rem',
+                    padding: '0.65rem 0.75rem',
                     borderRadius: '10px',
-                    background: 'rgba(255,255,255,0.03)',
-                    border: '1px solid rgba(255,255,255,0.06)',
+                    background: 'var(--bg-input)',
+                    border: '1px solid var(--border-color)',
                     transition: 'background 0.2s',
                   }}
                 >
                   <div
                     onClick={() => handleFocusNode(p.id)}
-                    style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', flex: 1, overflow: 'hidden' }}
+                    style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', flex: 1, overflow: 'hidden' }}
                     title="Cliquer pour localiser sur le canvas"
                   >
                     {/* Avatar */}
                     <div style={{
-                      width: '36px',
-                      height: '36px',
+                      width: '34px',
+                      height: '34px',
                       borderRadius: '50%',
-                      background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                      background: 'linear-gradient(135deg, #c0956a, #a07850)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       flexShrink: 0,
                       overflow: 'hidden',
-                      fontSize: '12px',
+                      fontSize: '11px',
                       fontWeight: '700',
                       color: '#fff',
                     }}>
@@ -139,11 +105,11 @@ export default function PeopleListModal({ people, onClose, onEdit, onDelete }: P
                     </div>
 
                     <div style={{ overflow: 'hidden' }}>
-                      <div style={{ color: '#f8f9fa', fontWeight: '600', fontSize: '0.95rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <div style={{ color: 'var(--text-primary)', fontWeight: '600', fontSize: '0.9rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {p.firstName} {p.lastName}
                       </div>
                       {(birthYear || deathYear) && (
-                        <div style={{ color: '#a0aab2', fontSize: '0.75rem' }}>
+                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.7rem' }}>
                           {birthYear && <span>🎂 {birthYear}</span>}
                           {deathYear && <span style={{ marginLeft: '6px' }}>✝️ {deathYear}</span>}
                         </div>
@@ -154,19 +120,19 @@ export default function PeopleListModal({ people, onClose, onEdit, onDelete }: P
                   {/* Actions */}
                   <div style={{ display: 'flex', gap: '4px', marginLeft: '8px' }}>
                     <button
-                      title="Localiser sur le canvas"
+                      title="Localiser"
                       onClick={() => handleFocusNode(p.id)}
-                      style={{ background: 'rgba(99,102,241,0.2)', border: 'none', color: '#a5b4fc', borderRadius: '6px', width: '30px', height: '30px', cursor: 'pointer', fontSize: '13px' }}
+                      style={{ background: 'var(--accent-light)', border: 'none', color: 'var(--accent-color)', borderRadius: '6px', width: '32px', height: '32px', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                     >🎯</button>
                     {onEdit && <button
                       title="Modifier"
                       onClick={() => { onEdit(p.id); onClose(); }}
-                      style={{ background: 'rgba(99,102,241,0.2)', border: 'none', color: '#a5b4fc', borderRadius: '6px', width: '30px', height: '30px', cursor: 'pointer', fontSize: '13px' }}
+                      style={{ background: 'var(--accent-light)', border: 'none', color: 'var(--accent-color)', borderRadius: '6px', width: '32px', height: '32px', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                     >✏️</button>}
                     {onDelete && <button
                       title="Supprimer"
                       onClick={() => { onDelete(p.id); }}
-                      style={{ background: 'rgba(239,68,68,0.2)', border: 'none', color: '#f87171', borderRadius: '6px', width: '30px', height: '30px', cursor: 'pointer', fontSize: '13px' }}
+                      style={{ background: 'rgba(180,60,60,0.08)', border: 'none', color: '#b03c3c', borderRadius: '6px', width: '32px', height: '32px', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                     >🗑️</button>}
                   </div>
                 </div>

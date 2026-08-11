@@ -1,15 +1,25 @@
 :root {
-  --bg-color: #0f1115;
-  --text-primary: #f8f9fa;
-  --text-secondary: #a0aab2;
-  --accent-color: #6366f1;
-  --accent-hover: #4f46e5;
-  
-  --glass-bg: rgba(255, 255, 255, 0.03);
-  --glass-border: rgba(255, 255, 255, 0.08);
-  --glass-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
-  --card-radius: 16px;
-  
+  --bg-color: #faf6f1;
+  --bg-dark: #f0e8de;
+  --bg-card: rgba(255, 252, 248, 0.92);
+  --bg-input: rgba(120, 100, 70, 0.06);
+  --text-primary: #3d2e1c;
+  --text-secondary: #8a7560;
+  --text-muted: #b5a48e;
+  --accent-color: #a07850;
+  --accent-hover: #8a6540;
+  --accent-light: rgba(160, 120, 80, 0.12);
+  --accent-border: rgba(160, 120, 80, 0.25);
+
+  --couple-united: #c0785a;
+  --couple-separated: #c49a3c;
+  --child-link: #7a9b6d;
+
+  --border-color: rgba(60, 46, 28, 0.1);
+  --border-hover: rgba(60, 46, 28, 0.2);
+  --glass-shadow: 0 4px 24px rgba(60, 46, 28, 0.08);
+  --card-radius: 14px;
+
   --font-sans: var(--font-geist-sans), "Inter", system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), monospace;
 }
@@ -24,11 +34,13 @@ html, body {
   color: var(--text-primary);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  -webkit-text-size-adjust: 100%;
+  touch-action: manipulation;
 }
-
 
 * {
   box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
 }
 
 a {
@@ -41,60 +53,192 @@ h1, h2, h3, h4 {
   font-weight: 700;
   letter-spacing: -0.02em;
   margin-bottom: 0.5em;
+  color: var(--text-primary);
 }
 
-h1 { font-size: 3.5rem; line-height: 1.1; }
-h2 { font-size: 2.25rem; }
-h3 { font-size: 1.5rem; }
+h1 { font-size: 2rem; line-height: 1.1; }
+h2 { font-size: 1.5rem; }
+h3 { font-size: 1.25rem; }
 p { color: var(--text-secondary); line-height: 1.6; }
 
-/* Components */
-.glass-panel {
-  background: var(--glass-bg);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--card-radius);
-  box-shadow: var(--glass-shadow);
-  padding: 2rem;
-  transition: transform 0.3s ease, border-color 0.3s ease;
+@media (min-width: 768px) {
+  h1 { font-size: 3rem; }
+  h2 { font-size: 2rem; }
 }
 
-.glass-panel:hover {
-  transform: translateY(-2px);
-  border-color: rgba(255, 255, 255, 0.15);
+/* Modal Overlay */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(60, 46, 28, 0.4);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 200;
 }
 
+@media (min-width: 640px) {
+  .modal-overlay {
+    align-items: center;
+  }
+}
+
+.modal-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--card-radius) var(--card-radius) 0 0;
+  padding: 1.5rem;
+  width: 100%;
+  max-width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 -4px 32px rgba(60, 46, 28, 0.15);
+  animation: slideUp 0.25s ease-out;
+}
+
+@media (min-width: 640px) {
+  .modal-card {
+    border-radius: var(--card-radius);
+    max-width: 420px;
+    margin: 1rem;
+    box-shadow: var(--glass-shadow);
+    animation: fadeIn 0.2s ease-out;
+  }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* Input styles */
+.input-field {
+  padding: 0.7rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 16px; /* prevent iOS zoom */
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color 0.2s;
+}
+
+.input-field:focus {
+  outline: none;
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 3px var(--accent-light);
+}
+
+.input-field::placeholder {
+  color: var(--text-muted);
+}
+
+.label-field {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+
+/* Buttons */
 .btn-primary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background-color: var(--accent-color);
+  background: linear-gradient(135deg, var(--accent-color), var(--accent-hover));
   color: #fff;
-  font-weight: 500;
+  font-weight: 600;
   padding: 0.75rem 1.5rem;
   border-radius: 8px;
   border: none;
   cursor: pointer;
   transition: all 0.2s ease;
   font-size: 1rem;
+  min-height: 44px; /* touch-friendly */
 }
 
 .btn-primary:hover {
-  background-color: var(--accent-hover);
+  filter: brightness(1.08);
   transform: scale(1.02);
 }
 
-/* Utilities */
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 1.5rem;
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
 }
 
-.text-gradient {
-  background: linear-gradient(135deg, #a5b4fc, #818cf8, #c084fc);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-weight: 500;
+  padding: 0.65rem 1rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.9rem;
+  min-height: 44px;
+}
+
+.btn-secondary:hover {
+  background: var(--accent-light);
+  border-color: var(--accent-border);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--text-muted);
+  border-radius: 3px;
+}
+
+/* React Flow overrides for beige theme */
+.react-flow__controls {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: 10px !important;
+  box-shadow: var(--glass-shadow) !important;
+}
+
+.react-flow__controls-button {
+  background: var(--bg-card) !important;
+  border-color: var(--border-color) !important;
+  fill: var(--text-secondary) !important;
+}
+
+.react-flow__controls-button:hover {
+  background: var(--accent-light) !important;
+}
+
+.react-flow__minimap {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: 10px !important;
+}
+
+/* Hide minimap on mobile */
+@media (max-width: 640px) {
+  .react-flow__minimap {
+    display: none !important;
+  }
+  .react-flow__controls {
+    bottom: 70px !important;
+  }
 }

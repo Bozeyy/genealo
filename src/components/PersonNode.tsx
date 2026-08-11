@@ -20,6 +20,7 @@ export type PersonNodeData = {
 
 function PersonNode({ data, selected }: NodeProps<PersonNodeData>) {
   const [showActions, setShowActions] = useState(false);
+  const hasActions = data.onEdit || data.onDelete || data.onCreateCouple;
 
   const initials = `${data.firstName.charAt(0)}${data.lastName ? data.lastName.charAt(0) : ''}`.toUpperCase();
 
@@ -33,83 +34,94 @@ function PersonNode({ data, selected }: NodeProps<PersonNodeData>) {
 
   return (
     <div
-      onMouseEnter={() => setShowActions(true)}
+      onMouseEnter={() => hasActions && setShowActions(true)}
       onMouseLeave={() => setShowActions(false)}
+      onClick={() => hasActions && setShowActions(prev => !prev)}
       style={{
         background: selected
-          ? 'linear-gradient(135deg, rgba(99,102,241,0.3), rgba(139,92,246,0.2))'
-          : 'rgba(255,255,255,0.05)',
+          ? 'linear-gradient(135deg, rgba(160,120,80,0.15), rgba(192,120,90,0.1))'
+          : 'rgba(255,252,248,0.92)',
         backdropFilter: 'blur(12px)',
-        border: `1px solid ${selected ? 'rgba(99,102,241,0.7)' : 'rgba(255,255,255,0.1)'}`,
+        border: `1.5px solid ${selected ? 'rgba(160,120,80,0.5)' : 'rgba(60,46,28,0.12)'}`,
         borderRadius: '12px',
-        padding: '12px 16px',
-        minWidth: '180px',
-        maxWidth: '220px',
+        padding: '10px 14px',
+        minWidth: '160px',
+        maxWidth: '200px',
         boxShadow: selected
-          ? '0 0 0 2px rgba(99,102,241,0.4), 0 8px 32px rgba(0,0,0,0.3)'
-          : '0 4px 24px rgba(0,0,0,0.25)',
+          ? '0 0 0 2px rgba(160,120,80,0.3), 0 6px 24px rgba(60,46,28,0.12)'
+          : '0 2px 12px rgba(60,46,28,0.08)',
         cursor: 'grab',
         transition: 'all 0.2s ease',
         position: 'relative',
       }}
     >
-      {/* Handles on top and bottom */}
-      <Handle type="target" position={Position.Top} id="top-target" style={{ background: '#60a5fa', opacity: 0.7, width: 8, height: 8 }} />
-      <Handle type="source" position={Position.Bottom} id="bottom-source" style={{ background: '#a78bfa', opacity: 0.7, width: 8, height: 8 }} />
-      <Handle type="source" position={Position.Left} id="left-source" style={{ background: '#a78bfa', opacity: 0.7, width: 8, height: 8 }} />
-      <Handle type="source" position={Position.Right} id="right-source" style={{ background: '#a78bfa', opacity: 0.7, width: 8, height: 8 }} />
+      {/* Handles */}
+      <Handle type="target" position={Position.Top} id="top-target" style={{ background: 'var(--child-link)', opacity: 0.6, width: 7, height: 7 }} />
+      <Handle type="source" position={Position.Bottom} id="bottom-source" style={{ background: 'var(--accent-color)', opacity: 0.6, width: 7, height: 7 }} />
+      <Handle type="source" position={Position.Left} id="left-source" style={{ background: 'var(--accent-color)', opacity: 0.6, width: 7, height: 7 }} />
+      <Handle type="source" position={Position.Right} id="right-source" style={{ background: 'var(--accent-color)', opacity: 0.6, width: 7, height: 7 }} />
 
       {/* Action buttons */}
-      {showActions && (
+      {showActions && hasActions && (
         <div style={{
           position: 'absolute',
-          top: '-38px',
+          top: '-42px',
           left: '50%',
           transform: 'translateX(-50%)',
           display: 'flex',
           gap: '4px',
-          background: 'rgba(15,17,21,0.95)',
-          border: '1px solid rgba(255,255,255,0.15)',
-          borderRadius: '8px',
-          padding: '4px',
+          background: 'rgba(255,252,248,0.97)',
+          border: '1px solid rgba(60,46,28,0.15)',
+          borderRadius: '10px',
+          padding: '5px',
           zIndex: 10,
           whiteSpace: 'nowrap',
+          boxShadow: '0 4px 16px rgba(60,46,28,0.12)',
         }}>
-          <button
-            title="Ajouter un enfant à cette personne"
-            onClick={() => data.onAddChildPerson?.(data.id)}
-            style={{ background: 'rgba(56,189,248,0.25)', border: 'none', color: '#38bdf8', borderRadius: '5px', width: '28px', height: '28px', cursor: 'pointer', fontSize: '13px' }}
-          >👶</button>
+          {data.onAddChildPerson && (
+            <button
+              title="Ajouter un enfant"
+              onClick={(e) => { e.stopPropagation(); data.onAddChildPerson?.(data.id); }}
+              style={{ background: 'rgba(122,155,109,0.15)', border: 'none', color: '#5a8a48', borderRadius: '6px', width: '32px', height: '32px', cursor: 'pointer', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            >👶</button>
+          )}
 
-          <button
-            title="Former un couple"
-            onClick={() => data.onCreateCouple?.(data.id)}
-            style={{ background: 'rgba(167,139,250,0.3)', border: 'none', color: '#c084fc', borderRadius: '5px', width: '28px', height: '28px', cursor: 'pointer', fontSize: '13px' }}
-          >💍</button>
+          {data.onCreateCouple && (
+            <button
+              title="Former un couple"
+              onClick={(e) => { e.stopPropagation(); data.onCreateCouple?.(data.id); }}
+              style={{ background: 'rgba(192,120,90,0.15)', border: 'none', color: '#a06848', borderRadius: '6px', width: '32px', height: '32px', cursor: 'pointer', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            >💍</button>
+          )}
 
-          {data.parentCoupleId && (
+          {data.parentCoupleId && data.onDetachParent && (
             <button
               title="Détacher de ses parents"
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation();
                 if (confirm('Détacher cette personne de ses parents ?')) {
                   data.onDetachParent?.(data.id);
                 }
               }}
-              style={{ background: 'rgba(234,179,8,0.2)', border: 'none', color: '#fde047', borderRadius: '5px', width: '28px', height: '28px', cursor: 'pointer', fontSize: '13px' }}
+              style={{ background: 'rgba(196,154,60,0.15)', border: 'none', color: '#9a7a2e', borderRadius: '6px', width: '32px', height: '32px', cursor: 'pointer', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             >🔗</button>
           )}
 
-          <button
-            title="Modifier"
-            onClick={() => data.onEdit?.(data.id)}
-            style={{ background: 'rgba(99,102,241,0.3)', border: 'none', color: '#a5b4fc', borderRadius: '5px', width: '28px', height: '28px', cursor: 'pointer', fontSize: '13px' }}
-          >✏️</button>
+          {data.onEdit && (
+            <button
+              title="Modifier"
+              onClick={(e) => { e.stopPropagation(); data.onEdit?.(data.id); }}
+              style={{ background: 'rgba(160,120,80,0.12)', border: 'none', color: '#8a6540', borderRadius: '6px', width: '32px', height: '32px', cursor: 'pointer', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            >✏️</button>
+          )}
 
-          <button
-            title="Supprimer"
-            onClick={() => data.onDelete?.(data.id)}
-            style={{ background: 'rgba(239,68,68,0.2)', border: 'none', color: '#f87171', borderRadius: '5px', width: '28px', height: '28px', cursor: 'pointer', fontSize: '13px' }}
-          >🗑️</button>
+          {data.onDelete && (
+            <button
+              title="Supprimer"
+              onClick={(e) => { e.stopPropagation(); data.onDelete?.(data.id); }}
+              style={{ background: 'rgba(180,60,60,0.1)', border: 'none', color: '#b03c3c', borderRadius: '6px', width: '32px', height: '32px', cursor: 'pointer', fontSize: '14px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            >🗑️</button>
+          )}
         </div>
       )}
 
@@ -117,16 +129,16 @@ function PersonNode({ data, selected }: NodeProps<PersonNodeData>) {
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
         {/* Avatar */}
         <div style={{
-          width: '44px',
-          height: '44px',
+          width: '40px',
+          height: '40px',
           borderRadius: '50%',
-          background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+          background: 'linear-gradient(135deg, #c0956a, #a07850)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           flexShrink: 0,
           overflow: 'hidden',
-          fontSize: '14px',
+          fontSize: '13px',
           fontWeight: '700',
           color: '#fff',
         }}>
@@ -137,11 +149,11 @@ function PersonNode({ data, selected }: NodeProps<PersonNodeData>) {
 
         {/* Info */}
         <div style={{ overflow: 'hidden' }}>
-          <div style={{ color: '#f8f9fa', fontWeight: '600', fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <div style={{ color: '#3d2e1c', fontWeight: '600', fontSize: '13px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {data.firstName} {data.lastName}
           </div>
           {(birthYear || deathYear) && (
-            <div style={{ color: '#a0aab2', fontSize: '11px', marginTop: '2px' }}>
+            <div style={{ color: '#8a7560', fontSize: '11px', marginTop: '2px' }}>
               {birthYear && <span>🎂 {birthYear}</span>}
               {deathYear && <span style={{ marginLeft: '6px' }}>✝️ {deathYear}</span>}
             </div>

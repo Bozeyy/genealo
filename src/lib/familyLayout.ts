@@ -53,8 +53,8 @@ export function buildFamilyGraph(people: PersonNodeData[], couples: RawCouple[])
     dagreGraph.setNode(unionNodeId, { width: 30, height: 30 });
 
     const spouseEdgeStyle = isSep
-      ? { stroke: '#f59e0b', strokeWidth: 2, strokeDasharray: '6 4' }
-      : { stroke: '#ec4899', strokeWidth: 2.5 };
+      ? { stroke: '#c49a3c', strokeWidth: 2, strokeDasharray: '6 4' }
+      : { stroke: '#c0785a', strokeWidth: 2.5 };
 
     // Edge Partner 1 -> Union
     if (nodesMap.has(couple.partner1Id)) {
@@ -64,7 +64,7 @@ export function buildFamilyGraph(people: PersonNodeData[], couples: RawCouple[])
         source: couple.partner1Id,
         target: unionNodeId,
         type: 'smoothstep',
-        style: isSingleParent ? { stroke: '#38bdf8', strokeWidth: 2.5 } : spouseEdgeStyle,
+        style: isSingleParent ? { stroke: '#7a9b6d', strokeWidth: 2.5 } : spouseEdgeStyle,
       });
       dagreGraph.setEdge(couple.partner1Id, unionNodeId);
     }
@@ -91,7 +91,7 @@ export function buildFamilyGraph(people: PersonNodeData[], couples: RawCouple[])
           source: unionNodeId,
           target: child.id,
           type: 'smoothstep',
-          style: { stroke: '#38bdf8', strokeWidth: 2.5 },
+          style: { stroke: '#7a9b6d', strokeWidth: 2.5 },
         });
         dagreGraph.setEdge(unionNodeId, child.id);
       }
