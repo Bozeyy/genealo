@@ -1,0 +1,45 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Person {
+  id        String   @id @default(cuid())
+  firstName String
+  lastName  String?
+  birthDate DateTime?
+  deathDate DateTime?
+  photoUrl  String?
+  positionX Float    @default(0)
+  positionY Float    @default(0)
+
+  couplesAsPartner1 Couple[] @relation("Partner1")
+  couplesAsPartner2 Couple[] @relation("Partner2")
+  parentCouple      Couple?  @relation("Children", fields: [parentCoupleId], references: [id], onDelete: SetNull)
+  parentCoupleId    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Couple {
+  id          String   @id @default(cuid())
+  partner1Id  String
+  partner2Id  String
+  isSeparated Boolean  @default(false)
+
+  partner1 Person   @relation("Partner1", fields: [partner1Id], references: [id], onDelete: Cascade)
+  partner2 Person   @relation("Partner2", fields: [partner2Id], references: [id], onDelete: Cascade)
+  children Person[] @relation("Children")
+
+  createdAt DateTime @default(now())
+}
+
+
