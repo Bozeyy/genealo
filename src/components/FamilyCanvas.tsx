@@ -23,8 +23,10 @@ import CreateCoupleModal from './CreateCoupleModal';
 import AddPersonButton from './AddPersonButton';
 import PeopleListModal from './PeopleListModal';
 import { deletePerson, updatePersonPosition } from '@/actions/personActions';
-import { deleteCouple, addChildToCouple, removeChildFromCouple } from '@/actions/coupleActions';
+import { deleteCouple, addChildToCouple, addChildToPerson, removeChildFromCouple, toggleCoupleSeparated } from '@/actions/coupleActions';
 import { buildFamilyGraph, RawCouple } from '@/lib/familyLayout';
+import AuthModal from './AuthModal';
+import { logout } from '@/actions/authActions';
 
 const nodeTypes = {
   person: PersonNode,
@@ -36,9 +38,10 @@ type Props = {
   initialEdges: Edge[];
   people: PersonNodeData[];
   rawCouples: RawCouple[];
+  isAuthenticated: boolean;
 };
 
-function FamilyCanvasInner({ initialNodes, initialEdges, people, rawCouples }: Props) {
+function FamilyCanvasInner({ initialNodes, initialEdges, people, rawCouples, isAuthenticated }: Props) {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const { fitView } = useReactFlow();
@@ -56,8 +59,15 @@ function FamilyCanvasInner({ initialNodes, initialEdges, people, rawCouples }: P
   const [createCouplePartner1Id, setCreateCouplePartner1Id] = useState<string | null>(null);
   const [showCreateCoupleModal, setShowCreateCoupleModal] = useState(false);
   const [addChildTargetCoupleId, setAddChildTargetCoupleId] = useState<string | null>(null);
+  const [addChildTargetPersonId, setAddChildTargetPersonId] = useState<string | null>(null);
   const [showPeopleList, setShowPeopleList] = useState(false);
   const [organizeLoading, setOrganizeLoading] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+
+  const handleLogout = async () => {
+    await logout();
+    window.location.reload();
+  };
 
   const handleAutoOrganize = async () => {
     setOrganizeLoading(true);
@@ -107,12 +117,20 @@ function FamilyCanvasInner({ initialNodes, initialEdges, people, rawCouples }: P
     setShowCreateCoupleModal(true);
   }, []);
 
+  const handleOpenAddChildPerson = useCallback((personId: string) => {
+    setAddChildTargetPersonId(personId);
+  }, []);
+
   const handleDetachParent = useCallback(async (childId: string) => {
     await removeChildFromCouple(childId);
   }, []);
 
   const handleDeleteCouple = useCallback(async (coupleId: string) => {
     await deleteCouple(coupleId);
+  }, []);
+
+  const handleToggleSeparated = useCallback(async (coupleId: string, isSeparated: boolean) => {
+    await toggleCoupleSeparated(coupleId, isSeparated);
   }, []);
 
   const handleOpenAddChild = useCallback((coupleId: string) => {
@@ -130,10 +148,11 @@ function FamilyCanvasInner({ initialNodes, initialEdges, people, rawCouples }: P
         ...node,
         data: {
           ...node.data,
-          onEdit: handleEdit,
-          onDelete: handleDeletePerson,
-          onCreateCouple: handleStartCreateCouple,
-          onDetachParent: handleDetachParent,
+          onEdit: isAuthenticated ? handleEdit : undefined,
+          onDelete: isAuthenticated ? handleDeletePerson : undefined,
+          onCreateCouple: isAuthenticated ? handleStartCreateCouple : undefined,
+          onAddChildPerson: isAuthenticated ? handleOpenAddChildPerson : undefined,
+          onDetachParent: isAuthenticated ? handleDetachParent : undefined,
         },
       };
     }
@@ -142,9 +161,10 @@ function FamilyCanvasInner({ initialNodes, initialEdges, people, rawCouples }: P
         ...node,
         data: {
           ...node.data,
-          onAddChild: handleOpenAddChild,
-          onDeleteCouple: handleDeleteCouple,
-          onRemoveChild: handleRemoveChildFromCouple,
+          onAddChild: isAuthenticated ? handleOpenAddChild : undefined,
+          onDeleteCouple: isAuthenticated ? handleDeleteCouple : undefined,
+          onToggleSeparated: isAuthenticated ? handleToggleSeparated : undefined,
+          onRemoveChild: isAuthenticated ? handleRemoveChildFromCouple : undefined,
         },
       };
     }
@@ -197,7 +217,49 @@ function FamilyCanvasInner({ initialNodes, initialEdges, people, rawCouples }: P
           📋 Membres ({people.length})
         </button>
 
+        {/* Lock/Unlock Button */}
+        {isAuthenticated ? (
+          <button
+            onClick={handleLogout}
+            style={{
+              background: 'rgba(239,68,68,0.15)',
+              border: '1px solid rgba(239,68,68,0.3)',
+              borderRadius: '8px',
+              padding: '0.4rem 0.8rem',
+              color: '#fca5a5',
+              fontSize: '0.85rem',
+              fontWeight: '600',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+          >
+            🔒 Verrouiller
+          </button>
+        ) : (
+          <button
+            onClick={() => setShowAuthModal(true)}
+            style={{
+              background: 'rgba(16,185,129,0.15)',
+              border: '1px solid rgba(16,185,129,0.3)',
+              borderRadius: '8px',
+              padding: '0.4rem 0.8rem',
+              color: '#6ee7b7',
+              fontSize: '0.85rem',
+              fontWeight: '600',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+          >
+            🔓 Déverrouiller
+          </button>
+        )}
+
         {/* Button to create couple */}
+        {isAuthenticated && (
         <button
           onClick={() => handleStartCreateCouple()}
           style={{
@@ -216,8 +278,10 @@ function FamilyCanvasInner({ initialNodes, initialEdges, people, rawCouples }: P
         >
           💍 Former un couple
         </button>
+        )}
 
         {/* Button for Auto Organize */}
+        {isAuthenticated && (
         <button
           onClick={handleAutoOrganize}
           disabled={organizeLoading}
@@ -237,6 +301,7 @@ function FamilyCanvasInner({ initialNodes, initialEdges, people, rawCouples }: P
         >
           {organizeLoading ? '⏳ Calcul...' : '🪄 Auto-organiser par génération'}
         </button>
+        )}
       </div>
 
       <ReactFlow
@@ -245,6 +310,7 @@ function FamilyCanvasInner({ initialNodes, initialEdges, people, rawCouples }: P
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onNodeDragStop={onNodeDragStop}
+        nodesDraggable={isAuthenticated}
         nodeTypes={nodeTypes}
         fitView
         fitViewOptions={{ padding: 0.3, minZoom: 0.3, maxZoom: 1 }}
@@ -277,7 +343,7 @@ function FamilyCanvasInner({ initialNodes, initialEdges, people, rawCouples }: P
       </ReactFlow>
 
       {/* Empty state */}
-      {people.length === 0 && (
+      {people.length === 0 && isAuthenticated && (
         <div style={{
           position: 'absolute',
           top: '50%',
@@ -296,15 +362,15 @@ function FamilyCanvasInner({ initialNodes, initialEdges, people, rawCouples }: P
       )}
 
       {/* FAB */}
-      <AddPersonButton />
+      {isAuthenticated && <AddPersonButton />}
 
       {/* People List Modal */}
       {showPeopleList && (
         <PeopleListModal
           people={people}
           onClose={() => setShowPeopleList(false)}
-          onEdit={handleEdit}
-          onDelete={handleDeletePerson}
+          onEdit={isAuthenticated ? handleEdit : undefined}
+          onDelete={isAuthenticated ? handleDeletePerson : undefined}
         />
       )}
 
@@ -331,6 +397,23 @@ function FamilyCanvasInner({ initialNodes, initialEdges, people, rawCouples }: P
           coupleId={addChildTargetCoupleId}
           people={people}
           onClose={() => setAddChildTargetCoupleId(null)}
+        />
+      )}
+
+      {/* Add Child directly to Person Modal */}
+      {addChildTargetPersonId && (
+        <AddChildToPersonModal
+          parentPersonId={addChildTargetPersonId}
+          people={people}
+          onClose={() => setAddChildTargetPersonId(null)}
+        />
+      )}
+
+      {/* Auth Modal */}
+      {showAuthModal && (
+        <AuthModal
+          onClose={() => setShowAuthModal(false)}
+          onSuccess={() => window.location.reload()}
         />
       )}
     </div>
@@ -435,6 +518,120 @@ function AddChildModal({ coupleId, people, onClose }: { coupleId: string; people
             }}
           >
             {loading ? 'Rattachement...' : 'Rattacher cet enfant'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// Sub-component: Add Child directly to Person (Single Parent support)
+function AddChildToPersonModal({ parentPersonId, people, onClose }: { parentPersonId: string; people: PersonNodeData[]; onClose: () => void }) {
+  const [selectedChildId, setSelectedChildId] = useState('');
+  const [search, setSearch] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const parent = people.find(p => p.id === parentPersonId);
+  const availableChildren = people.filter(p => p.id !== parentPersonId && `${p.firstName} ${p.lastName ?? ''}`.toLowerCase().includes(search.toLowerCase()));
+
+  const handleAdd = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedChildId) return;
+    setLoading(true);
+    setError('');
+    try {
+      const res = await addChildToPerson(parentPersonId, selectedChildId);
+      if ('error' in res && res.error) {
+        setError(res.error as string);
+      } else {
+        onClose();
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const selectStyle: React.CSSProperties = {
+    padding: '0.7rem',
+    borderRadius: '8px',
+    border: '1px solid rgba(255,255,255,0.1)',
+    background: 'rgba(255,255,255,0.05)',
+    color: '#f8f9fa',
+    fontFamily: 'inherit',
+    width: '100%',
+    boxSizing: 'border-box',
+  };
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0,
+        background: 'rgba(0,0,0,0.6)',
+        backdropFilter: 'blur(6px)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        zIndex: 200,
+      }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: 'rgba(20,22,28,0.95)',
+          border: '1px solid rgba(255,255,255,0.1)',
+          borderRadius: '16px',
+          padding: '2rem',
+          width: '100%',
+          maxWidth: '400px',
+          margin: '1rem',
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+          <div>
+            <h2 style={{ margin: 0, fontSize: '1.25rem' }}>👶 Ajouter un enfant</h2>
+            <p style={{ margin: '4px 0 0', fontSize: '0.875rem', color: '#a0aab2' }}>
+              Pour : <strong style={{ color: '#38bdf8' }}>{parent?.firstName} {parent?.lastName}</strong>
+            </p>
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#a0aab2', cursor: 'pointer', fontSize: '1.2rem' }}>✕</button>
+        </div>
+
+        <form onSubmit={handleAdd} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div>
+            <input
+              type="text"
+              placeholder="🔍 Rechercher l'enfant par nom..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              style={{ ...selectStyle, marginBottom: '8px' }}
+            />
+            <select value={selectedChildId} onChange={e => setSelectedChildId(e.target.value)} style={selectStyle}>
+              <option value="">— Sélectionner l'enfant ({availableChildren.length}) —</option>
+              {availableChildren.map(p => (
+                <option key={p.id} value={p.id}>{p.firstName} {p.lastName ?? ''}</option>
+              ))}
+            </select>
+          </div>
+
+          {error && <p style={{ color: '#f87171', fontSize: '0.875rem', margin: 0 }}>{error}</p>}
+
+          <button
+            type="submit"
+            disabled={loading || !selectedChildId}
+            style={{
+              marginTop: '0.5rem',
+              padding: '0.75rem',
+              background: 'linear-gradient(135deg, #38bdf8, #2563eb)',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '8px',
+              fontWeight: '600',
+              cursor: (loading || !selectedChildId) ? 'not-allowed' : 'pointer',
+              opacity: (loading || !selectedChildId) ? 0.5 : 1,
+              fontSize: '1rem',
+            }}
+          >
+            {loading ? 'Ajout...' : 'Ajouter comme enfant'}
           </button>
         </form>
       </div>

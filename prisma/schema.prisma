@@ -42,4 +42,7 @@ model Couple {
   createdAt DateTime @default(now())
 }
 
-
+model SecurityConfig {
+  id      String @id @default("global")
+  pinHash String
+}

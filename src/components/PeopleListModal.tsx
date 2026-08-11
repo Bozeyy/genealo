@@ -7,8 +7,8 @@ import { useReactFlow } from 'reactflow';
 type Props = {
   people: PersonNodeData[];
   onClose: () => void;
-  onEdit: (id: string) => void;
-  onDelete: (id: string) => void;
+  onEdit?: (id: string) => void;
+  onDelete?: (id: string) => void;
 };
 
 export default function PeopleListModal({ people, onClose, onEdit, onDelete }: Props) {
@@ -158,16 +158,16 @@ export default function PeopleListModal({ people, onClose, onEdit, onDelete }: P
                       onClick={() => handleFocusNode(p.id)}
                       style={{ background: 'rgba(99,102,241,0.2)', border: 'none', color: '#a5b4fc', borderRadius: '6px', width: '30px', height: '30px', cursor: 'pointer', fontSize: '13px' }}
                     >🎯</button>
-                    <button
+                    {onEdit && <button
                       title="Modifier"
                       onClick={() => { onEdit(p.id); onClose(); }}
                       style={{ background: 'rgba(99,102,241,0.2)', border: 'none', color: '#a5b4fc', borderRadius: '6px', width: '30px', height: '30px', cursor: 'pointer', fontSize: '13px' }}
-                    >✏️</button>
-                    <button
+                    >✏️</button>}
+                    {onDelete && <button
                       title="Supprimer"
                       onClick={() => { onDelete(p.id); }}
                       style={{ background: 'rgba(239,68,68,0.2)', border: 'none', color: '#f87171', borderRadius: '6px', width: '30px', height: '30px', cursor: 'pointer', fontSize: '13px' }}
-                    >🗑️</button>
+                    >🗑️</button>}
                   </div>
                 </div>
               );

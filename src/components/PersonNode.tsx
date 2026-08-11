@@ -14,6 +14,7 @@ export type PersonNodeData = {
   onEdit?: (id: string) => void;
   onDelete?: (id: string) => void;
   onCreateCouple?: (id: string) => void;
+  onAddChildPerson?: (id: string) => void;
   onDetachParent?: (id: string) => void;
 };
 
@@ -74,6 +75,12 @@ function PersonNode({ data, selected }: NodeProps<PersonNodeData>) {
           zIndex: 10,
           whiteSpace: 'nowrap',
         }}>
+          <button
+            title="Ajouter un enfant à cette personne"
+            onClick={() => data.onAddChildPerson?.(data.id)}
+            style={{ background: 'rgba(56,189,248,0.25)', border: 'none', color: '#38bdf8', borderRadius: '5px', width: '28px', height: '28px', cursor: 'pointer', fontSize: '13px' }}
+          >👶</button>
+
           <button
             title="Former un couple"
             onClick={() => data.onCreateCouple?.(data.id)}

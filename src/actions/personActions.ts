@@ -2,8 +2,13 @@
 
 import prisma from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
+import { enforceRateLimit, checkRateLimit } from '@/lib/rateLimit';
+import { checkAuth } from './authActions';
 
 export async function createPerson(formData: FormData) {
+  await enforceRateLimit('createPerson', { limit: 15, windowMs: 60 * 1000 });
+  if (!(await checkAuth())) throw new Error('Non autorisé');
+
   const firstName = formData.get('firstName') as string;
   const lastName = formData.get('lastName') as string;
   const birthDateStr = formData.get('birthDate') as string;
@@ -12,7 +17,6 @@ export async function createPerson(formData: FormData) {
 
   if (!firstName) throw new Error('Le prénom est requis');
 
-  // Place new person at a slightly random position so they don't stack
   const positionX = 100 + Math.random() * 400;
   const positionY = 100 + Math.random() * 300;
 
@@ -33,6 +37,9 @@ export async function createPerson(formData: FormData) {
 }
 
 export async function updatePerson(id: string, formData: FormData) {
+  await enforceRateLimit('updatePerson', { limit: 30, windowMs: 60 * 1000 });
+  if (!(await checkAuth())) throw new Error('Non autorisé');
+
   const firstName = formData.get('firstName') as string;
   const lastName = formData.get('lastName') as string;
   const birthDateStr = formData.get('birthDate') as string;
@@ -55,14 +62,23 @@ export async function updatePerson(id: string, formData: FormData) {
 }
 
 export async function updatePersonPosition(id: string, x: number, y: number) {
-  await prisma.person.update({
-    where: { id },
-    data: { positionX: x, positionY: y },
-  });
-  // No revalidatePath here — position updates are client-side only
+  const { allowed } = await checkRateLimit('updatePersonPosition', { limit: 150, windowMs: 60 * 1000 });
+  if (!allowed || !(await checkAuth())) return;
+
+  try {
+    await prisma.person.update({
+      where: { id },
+      data: { positionX: x, positionY: y },
+    });
+  } catch (error) {
+    // Ignore error if person was deleted while drag timer was active
+  }
 }
 
 export async function deletePerson(id: string) {
+  await enforceRateLimit('deletePerson', { limit: 15, windowMs: 60 * 1000 });
+  if (!(await checkAuth())) throw new Error('Non autorisé');
+
   await prisma.person.delete({ where: { id } });
   revalidatePath('/');
   return { success: true };

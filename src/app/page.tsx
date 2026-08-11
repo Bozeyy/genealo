@@ -3,6 +3,7 @@ import prisma from '@/lib/prisma';
 import FamilyCanvas from '@/components/FamilyCanvas';
 import type { PersonNodeData } from '@/components/PersonNode';
 import { buildFamilyGraph, RawCouple } from '@/lib/familyLayout';
+import { checkAuth } from '@/actions/authActions';
 
 export const metadata: Metadata = {
   title: 'Genealo — Arbre Généalogique',
@@ -44,9 +45,12 @@ export default async function Home() {
     id: c.id,
     partner1Id: c.partner1Id,
     partner2Id: c.partner2Id,
+    isSeparated: c.isSeparated,
     children: c.children,
   }));
 
+
+  const isAuthenticated = await checkAuth();
   const { nodes, edges } = buildFamilyGraph(peopleList, rawCouples);
 
   return (
@@ -55,6 +59,7 @@ export default async function Home() {
       initialEdges={edges}
       people={peopleList}
       rawCouples={rawCouples}
+      isAuthenticated={isAuthenticated}
     />
   );
 }

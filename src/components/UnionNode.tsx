@@ -7,15 +7,18 @@ export type UnionNodeData = {
   coupleId: string;
   partner1Id: string;
   partner2Id: string;
+  isSeparated?: boolean;
   children: { id: string; firstName: string; lastName?: string | null }[];
   onAddChild?: (coupleId: string) => void;
   onDeleteCouple?: (coupleId: string) => void;
+  onToggleSeparated?: (coupleId: string, isSeparated: boolean) => void;
   onRemoveChild?: (childId: string) => void;
 };
 
 function UnionNode({ data, selected }: NodeProps<UnionNodeData>) {
   const [showMenu, setShowMenu] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const isSep = Boolean(data.isSeparated);
 
   // Close popup when clicking outside
   useEffect(() => {
@@ -47,22 +50,30 @@ function UnionNode({ data, selected }: NodeProps<UnionNodeData>) {
           setShowMenu(prev => !prev);
         }}
         style={{
-          width: 26,
-          height: 26,
+          width: 28,
+          height: 28,
           borderRadius: '50%',
-          background: 'linear-gradient(135deg, #a78bfa, #c084fc)',
-          border: selected ? '2px solid #fff' : '2px solid rgba(255,255,255,0.85)',
-          boxShadow: '0 0 14px rgba(167,139,250,0.8)',
+          background: isSep
+            ? 'linear-gradient(135deg, #f59e0b, #d97706)'
+            : 'linear-gradient(135deg, #a78bfa, #ec4899)',
+          border: selected
+            ? '2px solid #fff'
+            : isSep
+            ? '2px dashed rgba(255,255,255,0.9)'
+            : '2px solid rgba(255,255,255,0.9)',
+          boxShadow: isSep
+            ? '0 0 14px rgba(245,158,11,0.8)'
+            : '0 0 14px rgba(236,72,153,0.8)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           cursor: 'pointer',
-          fontSize: '12px',
-          transition: 'transform 0.15s ease',
+          fontSize: '13px',
+          transition: 'all 0.2s ease',
         }}
-        title="Cliquez pour gérer ce couple"
+        title={isSep ? 'Couple séparé/divorcé (cliquez pour gérer)' : 'Couple uni (cliquez pour gérer)'}
       >
-        💍
+        {isSep ? '💔' : '💍'}
       </div>
 
       {/* Handles */}
@@ -81,7 +92,7 @@ function UnionNode({ data, selected }: NodeProps<UnionNodeData>) {
             top: '100%',
             left: '50%',
             transform: 'translateX(-50%)',
-            paddingTop: '6px', // Invisible bridge for hover
+            paddingTop: '6px',
             zIndex: 1000,
           }}
         >
@@ -89,16 +100,29 @@ function UnionNode({ data, selected }: NodeProps<UnionNodeData>) {
             style={{
               background: 'rgba(20,22,28,0.96)',
               backdropFilter: 'blur(16px)',
-              border: '1px solid rgba(255,255,255,0.15)',
+              border: `1px solid ${isSep ? 'rgba(245,158,11,0.3)' : 'rgba(236,72,153,0.3)'}`,
               borderRadius: '12px',
               padding: '12px 14px',
-              minWidth: '220px',
+              minWidth: '230px',
               boxShadow: '0 12px 36px rgba(0,0,0,0.6)',
               color: '#f8f9fa',
             }}
           >
-            <div style={{ fontSize: '11px', fontWeight: '700', color: '#c084fc', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              💍 Union Familiale
+            <div style={{
+              fontSize: '11px',
+              fontWeight: '700',
+              color: isSep ? '#f59e0b' : '#ec4899',
+              marginBottom: '8px',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}>
+              <span>{isSep ? '💔 Union Séparée' : '💍 Union Familiale'}</span>
+              <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', background: isSep ? 'rgba(245,158,11,0.2)' : 'rgba(236,72,153,0.2)' }}>
+                {isSep ? 'Séparés' : 'Unis'}
+              </span>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
@@ -108,11 +132,11 @@ function UnionNode({ data, selected }: NodeProps<UnionNodeData>) {
                   data.onAddChild?.(data.coupleId);
                 }}
                 style={{
-                  background: 'rgba(99,102,241,0.25)',
-                  border: '1px solid rgba(99,102,241,0.4)',
+                  background: 'rgba(56,189,248,0.2)',
+                  border: '1px solid rgba(56,189,248,0.4)',
                   borderRadius: '6px',
                   padding: '7px 10px',
-                  color: '#a5b4fc',
+                  color: '#38bdf8',
                   fontSize: '12px',
                   fontWeight: '600',
                   cursor: 'pointer',
@@ -120,12 +144,33 @@ function UnionNode({ data, selected }: NodeProps<UnionNodeData>) {
                   display: 'flex',
                   alignItems: 'center',
                   gap: '6px',
-                  transition: 'background 0.2s',
                 }}
-                onMouseOver={e => e.currentTarget.style.background = 'rgba(99,102,241,0.4)'}
-                onMouseOut={e => e.currentTarget.style.background = 'rgba(99,102,241,0.25)'}
               >
                 👶 Ajouter un enfant au couple
+              </button>
+
+              {/* Toggle Separation Status */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  data.onToggleSeparated?.(data.coupleId, !isSep);
+                }}
+                style={{
+                  background: isSep ? 'rgba(167,139,250,0.2)' : 'rgba(245,158,11,0.2)',
+                  border: `1px solid ${isSep ? 'rgba(167,139,250,0.4)' : 'rgba(245,158,11,0.4)'}`,
+                  borderRadius: '6px',
+                  padding: '7px 10px',
+                  color: isSep ? '#c084fc' : '#fbbf24',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                }}
+              >
+                {isSep ? '💍 Marquer comme uni(e)s' : '💔 Marquer comme séparé(e)s'}
               </button>
 
               <button
@@ -148,12 +193,9 @@ function UnionNode({ data, selected }: NodeProps<UnionNodeData>) {
                   display: 'flex',
                   alignItems: 'center',
                   gap: '6px',
-                  transition: 'background 0.2s',
                 }}
-                onMouseOver={e => e.currentTarget.style.background = 'rgba(239,68,68,0.35)'}
-                onMouseOut={e => e.currentTarget.style.background = 'rgba(239,68,68,0.18)'}
               >
-                💔 Dissoudre le couple
+                🗑️ Supprimer le couple
               </button>
             </div>
 

@@ -34,6 +34,7 @@ export function buildFamilyGraph(people: PersonNodeData[], couples: RawCouple[])
   for (const couple of couples) {
     const unionNodeId = `union-${couple.id}`;
     const isSep = Boolean(couple.isSeparated);
+    const isSingleParent = couple.partner1Id === couple.partner2Id;
 
     const unionNode: Node = {
       id: unionNodeId,
@@ -44,6 +45,7 @@ export function buildFamilyGraph(people: PersonNodeData[], couples: RawCouple[])
         partner1Id: couple.partner1Id,
         partner2Id: couple.partner2Id,
         isSeparated: isSep,
+        isSingleParent,
         children: couple.children,
       },
     };
@@ -51,8 +53,8 @@ export function buildFamilyGraph(people: PersonNodeData[], couples: RawCouple[])
     dagreGraph.setNode(unionNodeId, { width: 30, height: 30 });
 
     const spouseEdgeStyle = isSep
-      ? { stroke: '#f59e0b', strokeWidth: 2, strokeDasharray: '6 4' } // Dashed amber for separated couples
-      : { stroke: '#ec4899', strokeWidth: 2.5 }; // Solid pink-magenta for united couples
+      ? { stroke: '#f59e0b', strokeWidth: 2, strokeDasharray: '6 4' }
+      : { stroke: '#ec4899', strokeWidth: 2.5 };
 
     // Edge Partner 1 -> Union
     if (nodesMap.has(couple.partner1Id)) {
@@ -62,13 +64,13 @@ export function buildFamilyGraph(people: PersonNodeData[], couples: RawCouple[])
         source: couple.partner1Id,
         target: unionNodeId,
         type: 'smoothstep',
-        style: spouseEdgeStyle,
+        style: isSingleParent ? { stroke: '#38bdf8', strokeWidth: 2.5 } : spouseEdgeStyle,
       });
       dagreGraph.setEdge(couple.partner1Id, unionNodeId);
     }
 
-    // Edge Partner 2 -> Union
-    if (nodesMap.has(couple.partner2Id)) {
+    // Edge Partner 2 -> Union (only if distinct partner)
+    if (!isSingleParent && nodesMap.has(couple.partner2Id)) {
       const e2Id = `edge-${couple.partner2Id}-${unionNodeId}`;
       edgesMap.set(e2Id, {
         id: e2Id,
