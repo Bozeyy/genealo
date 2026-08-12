@@ -62,7 +62,7 @@ export default function AddPersonButton({ isAuthenticated, onRequireAuth }: AddP
           transition: 'transform 0.2s ease, boxShadow 0.2s ease',
         }}
       >
-        <Plus size={28} strokeWidth={2.5} />
+        <UserPlus size={26} strokeWidth={2.2} />
       </button>
 
       {/* Modal */}
