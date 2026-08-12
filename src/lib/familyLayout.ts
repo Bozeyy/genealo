@@ -10,10 +10,10 @@ export type RawCouple = {
   children: { id: string; firstName: string; lastName?: string | null }[];
 };
 
-export function buildFamilyGraph(people: PersonNodeData[], couples: RawCouple[]) {
+export function buildFamilyGraph(people: PersonNodeData[], couples: RawCouple[], cardLayout: 'horizontal' | 'vertical' = 'horizontal') {
   const dagreGraph = new dagre.graphlib.Graph();
   dagreGraph.setDefaultEdgeLabel(() => ({}));
-  dagreGraph.setGraph({ rankdir: 'TB', nodesep: 70, ranksep: 100 });
+  dagreGraph.setGraph({ rankdir: 'TB', nodesep: cardLayout === 'vertical' ? 50 : 70, ranksep: cardLayout === 'vertical' ? 90 : 100 });
 
   const nodesMap = new Map<string, Node>();
   const edgesMap = new Map<string, Edge>();
@@ -24,10 +24,12 @@ export function buildFamilyGraph(people: PersonNodeData[], couples: RawCouple[])
       id: person.id,
       type: 'person',
       position: { x: 0, y: 0 },
-      data: person,
+      data: { ...person, cardLayout },
     };
     nodesMap.set(person.id, node);
-    dagreGraph.setNode(person.id, { width: 200, height: 75 });
+    const nodeWidth = cardLayout === 'vertical' ? 140 : 200;
+    const nodeHeight = cardLayout === 'vertical' ? 115 : 75;
+    dagreGraph.setNode(person.id, { width: nodeWidth, height: nodeHeight });
   }
 
   // 2. Add Couple Union Nodes & Edges

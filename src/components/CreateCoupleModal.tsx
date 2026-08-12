@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { createCouple } from '@/actions/coupleActions';
 import { PersonNodeData } from './PersonNode';
+import { Heart, X } from 'lucide-react';
 
 type Props = {
   initialPartner1Id?: string | null;
@@ -44,12 +45,16 @@ export default function CreateCoupleModal({ initialPartner1Id, people, onClose }
       <div onClick={e => e.stopPropagation()} className="modal-card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
           <div>
-            <h2 style={{ margin: 0, fontSize: '1.25rem' }}>💍 Former un couple</h2>
+            <h2 style={{ margin: 0, fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Heart size={20} color="var(--accent-color)" /> Former un couple
+            </h2>
             <p style={{ margin: '4px 0 0', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
               Sélectionnez 2 personnes pour créer une union
             </p>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1.2rem' }}>✕</button>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', padding: 4 }}>
+            <X size={20} />
+          </button>
         </div>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -66,7 +71,7 @@ export default function CreateCoupleModal({ initialPartner1Id, people, onClose }
             <div className="label-field">Partenaire 2</div>
             <input
               type="text"
-              placeholder="🔍 Rechercher par nom..."
+              placeholder="Rechercher par nom..."
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="input-field"
@@ -89,9 +94,12 @@ export default function CreateCoupleModal({ initialPartner1Id, people, onClose }
             style={{
               opacity: (loading || !partner1Id || !partner2Id) ? 0.5 : 1,
               cursor: (loading || !partner1Id || !partner2Id) ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
             }}
           >
-            {loading ? 'Création...' : '💍 Former le couple'}
+            <Heart size={16} fill="currentColor" /> {loading ? 'Création...' : 'Former le couple'}
           </button>
         </form>
       </div>

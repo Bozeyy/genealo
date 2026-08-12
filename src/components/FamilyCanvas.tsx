@@ -27,6 +27,7 @@ import { deletePerson, updatePersonPosition } from '@/actions/personActions';
 import { deleteCouple, addChildToCouple, addChildToPerson, removeChildFromCouple, toggleCoupleSeparated } from '@/actions/coupleActions';
 import { logout } from '@/actions/authActions';
 import { buildFamilyGraph, RawCouple } from '@/lib/familyLayout';
+import { GitFork, Users, Lock, Unlock, RectangleHorizontal, RectangleVertical, Heart, Wand2, Menu, X, Baby, Sprout, Loader2 } from 'lucide-react';
 
 const nodeTypes = {
   person: PersonNode,
@@ -56,8 +57,30 @@ function FamilyCanvasInner({ initialNodes, initialEdges, people, rawCouples, isA
   const [addChildTargetPersonId, setAddChildTargetPersonId] = useState<string | null>(null);
   const [showPeopleList, setShowPeopleList] = useState(false);
   const [organizeLoading, setOrganizeLoading] = useState(false);
-  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(!isAuthenticated);
+  const [cardLayout, setCardLayout] = useState<'horizontal' | 'vertical'>('horizontal');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Set vertical mode by default on mobile devices
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      setCardLayout('vertical');
+      const { nodes: newNodes, edges: newEdges } = buildFamilyGraph(people, rawCouples, 'vertical');
+      setNodes(newNodes);
+      setEdges(newEdges);
+      setTimeout(() => { fitView({ padding: 0.3, duration: 600 }); }, 100);
+    }
+  }, []);
+
+  const handleToggleLayout = () => {
+    const nextLayout = cardLayout === 'horizontal' ? 'vertical' : 'horizontal';
+    setCardLayout(nextLayout);
+    const { nodes: newNodes, edges: newEdges } = buildFamilyGraph(people, rawCouples, nextLayout);
+    setNodes(newNodes);
+    setEdges(newEdges);
+    setTimeout(() => { fitView({ padding: 0.3, duration: 600 }); }, 50);
+    setMobileMenuOpen(false);
+  };
 
   const handleLogout = async () => {
     await logout();
@@ -67,7 +90,7 @@ function FamilyCanvasInner({ initialNodes, initialEdges, people, rawCouples, isA
   const handleAutoOrganize = async () => {
     setOrganizeLoading(true);
     try {
-      const { nodes: newNodes, edges: newEdges } = buildFamilyGraph(people, rawCouples);
+      const { nodes: newNodes, edges: newEdges } = buildFamilyGraph(people, rawCouples, cardLayout);
       setNodes(newNodes);
       setEdges(newEdges);
       for (const node of newNodes) {
@@ -117,6 +140,7 @@ function FamilyCanvasInner({ initialNodes, initialEdges, people, rawCouples, isA
         ...node,
         data: {
           ...node.data,
+          cardLayout,
           onEdit: isAuthenticated ? handleEdit : undefined,
           onDelete: isAuthenticated ? handleDeletePerson : undefined,
           onCreateCouple: isAuthenticated ? handleStartCreateCouple : undefined,
@@ -161,82 +185,76 @@ function FamilyCanvasInner({ initialNodes, initialEdges, people, rawCouples, isA
 
   return (
     <div style={{ width: '100vw', height: '100vh', background: '#faf6f1', position: 'fixed', top: 0, left: 0 }}>
-      {/* Header overlay */}
-      <div style={{
-        position: 'absolute',
-        top: '0.75rem',
-        left: '50%',
-        transform: 'translateX(-50%)',
-        zIndex: 10,
-        background: 'rgba(255,252,248,0.9)',
-        backdropFilter: 'blur(12px)',
-        border: '1px solid rgba(60,46,28,0.1)',
-        borderRadius: '12px',
-        padding: '0.4rem 0.75rem',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '0.5rem',
-        boxShadow: '0 4px 20px rgba(60,46,28,0.08)',
-        maxWidth: 'calc(100vw - 1rem)',
-        flexWrap: 'wrap',
-      }}>
-        <span style={{ fontSize: '1rem', fontWeight: '700', color: '#a07850', whiteSpace: 'nowrap' }}>
-          🌳 Genealo
-        </span>
-        <span style={{ color: '#b5a48e', fontSize: '0.85rem' }}>|</span>
+      {/* Taskbar Header */}
+      <div className="app-header">
+        <div className="header-brand">
+          <GitFork size={18} color="var(--accent-color)" /> Genealo
+        </div>
 
-        {/* People list - always visible */}
-        <button onClick={() => setShowPeopleList(true)} style={headerBtnStyle('rgba(160,120,80,0.08)', 'rgba(160,120,80,0.2)', '#8a6540')}>
-          📋 <span className="header-btn-label">{people.length}</span>
-        </button>
-
-        {/* Lock/Unlock - always visible */}
-        {isAuthenticated ? (
-          <button onClick={handleLogout} style={headerBtnStyle('rgba(180,60,60,0.08)', 'rgba(180,60,60,0.2)', '#b03c3c')}>
-            🔒
+        <div className="header-actions">
+          {/* People List */}
+          <button
+            onClick={() => setShowPeopleList(true)}
+            className="header-btn"
+            title="Liste des membres"
+          >
+            <Users size={15} /> <span style={{ fontWeight: '700' }}>{people.length}</span>
           </button>
-        ) : (
-          <button onClick={() => setShowAuthModal(true)} style={headerBtnStyle('rgba(122,155,109,0.1)', 'rgba(122,155,109,0.25)', '#5a8a48')}>
-            🔓
+
+          {/* Card Layout format toggle (Horizontal / Vertical) */}
+          <button
+            onClick={handleToggleLayout}
+            className="header-btn"
+            title="Format des cartes (Horizontale / Verticale)"
+          >
+            {cardLayout === 'vertical' ? <RectangleVertical size={15} /> : <RectangleHorizontal size={15} />}
+            <span className="desktop-only" style={{ marginLeft: '4px' }}>
+              {cardLayout === 'vertical' ? 'Vertical' : 'Horizontal'}
+            </span>
           </button>
-        )}
 
-        {/* Desktop only buttons */}
-        {isAuthenticated && (
-          <>
-            <button
-              onClick={() => handleStartCreateCouple()}
-              style={{
-                ...headerBtnStyle('rgba(192,120,90,0.1)', 'rgba(192,120,90,0.25)', '#a06848'),
-                display: 'none',
-              }}
-              className="header-desktop-btn"
-            >
-              💍 Former un couple
-            </button>
-            <button
-              onClick={handleAutoOrganize}
-              disabled={organizeLoading}
-              style={{
-                ...headerBtnStyle('rgba(160,120,80,0.1)', 'rgba(160,120,80,0.3)', '#8a6540'),
-                cursor: organizeLoading ? 'wait' : 'pointer',
-                display: 'none',
-              }}
-              className="header-desktop-btn"
-            >
-              {organizeLoading ? '⏳ Calcul...' : '🪄 Auto-organiser'}
-            </button>
+          {/* Desktop specific buttons */}
+          {isAuthenticated && (
+            <>
+              <button
+                onClick={() => handleStartCreateCouple()}
+                className="header-btn desktop-only"
+                style={{ background: 'rgba(192, 120, 90, 0.1)', borderColor: 'rgba(192, 120, 90, 0.25)', color: '#a06848' }}
+              >
+                <Heart size={15} /> Former un couple
+              </button>
+              <button
+                onClick={handleAutoOrganize}
+                disabled={organizeLoading}
+                className="header-btn desktop-only"
+              >
+                {organizeLoading ? <Loader2 size={15} className="animate-spin" /> : <Wand2 size={15} />} Auto-organiser
+              </button>
+            </>
+          )}
 
-            {/* Mobile hamburger for extra actions */}
+          {/* Lock / Unlock */}
+          {isAuthenticated ? (
+            <button onClick={handleLogout} className="header-btn header-btn-danger" title="Verrouiller l'édition">
+              <Lock size={15} /> <span className="desktop-only">Verrouiller</span>
+            </button>
+          ) : (
+            <button onClick={() => setShowAuthModal(true)} className="header-btn header-btn-success" title="Déverrouiller l'édition">
+              <Unlock size={15} /> <span className="desktop-only">Déverrouiller</span>
+            </button>
+          )}
+
+          {/* Mobile hamburger menu for logged in actions */}
+          {isAuthenticated && (
             <button
               onClick={() => setMobileMenuOpen(prev => !prev)}
-              style={headerBtnStyle('rgba(160,120,80,0.08)', 'rgba(160,120,80,0.2)', '#8a6540')}
-              className="header-mobile-menu-btn"
+              className="header-btn mobile-only"
+              title="Menu"
             >
-              ☰
+              <Menu size={16} />
             </button>
-          </>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Mobile dropdown menu */}
@@ -245,60 +263,46 @@ function FamilyCanvasInner({ initialNodes, initialEdges, people, rawCouples, isA
           onClick={() => setMobileMenuOpen(false)}
           style={{
             position: 'fixed', inset: 0, zIndex: 15,
-            background: 'rgba(60,46,28,0.2)',
+            background: 'rgba(60,46,28,0.25)',
+            backdropFilter: 'blur(4px)',
           }}
         >
           <div
             onClick={e => e.stopPropagation()}
             style={{
               position: 'absolute',
-              top: '60px',
-              right: '0.75rem',
+              top: '55px',
+              right: '0.5rem',
               background: 'rgba(255,252,248,0.97)',
               border: '1px solid rgba(60,46,28,0.12)',
-              borderRadius: '12px',
-              padding: '0.5rem',
+              borderRadius: '14px',
+              padding: '0.6rem',
               display: 'flex',
               flexDirection: 'column',
-              gap: '4px',
-              boxShadow: '0 8px 24px rgba(60,46,28,0.12)',
-              minWidth: '200px',
+              gap: '6px',
+              boxShadow: '0 8px 28px rgba(60,46,28,0.15)',
+              minWidth: '220px',
+              animation: 'fadeIn 0.15s ease-out',
             }}
           >
             <button
               onClick={() => { handleStartCreateCouple(); }}
-              style={{
-                ...headerBtnStyle('rgba(192,120,90,0.1)', 'rgba(192,120,90,0.25)', '#a06848'),
-                width: '100%', justifyContent: 'flex-start',
-              }}
+              className="header-btn"
+              style={{ width: '100%', justifyContent: 'flex-start', background: 'rgba(192, 120, 90, 0.1)', color: '#a06848', padding: '0.6rem 0.8rem' }}
             >
-              💍 Former un couple
+              <Heart size={15} /> Former un couple
             </button>
             <button
               onClick={handleAutoOrganize}
               disabled={organizeLoading}
-              style={{
-                ...headerBtnStyle('rgba(160,120,80,0.1)', 'rgba(160,120,80,0.3)', '#8a6540'),
-                width: '100%', justifyContent: 'flex-start',
-                cursor: organizeLoading ? 'wait' : 'pointer',
-              }}
+              className="header-btn"
+              style={{ width: '100%', justifyContent: 'flex-start', padding: '0.6rem 0.8rem' }}
             >
-              {organizeLoading ? '⏳ Calcul...' : '🪄 Auto-organiser'}
+              {organizeLoading ? <Loader2 size={15} className="animate-spin" /> : <Wand2 size={15} />} Auto-organiser par génération
             </button>
           </div>
         </div>
       )}
-
-      {/* Responsive styles injected */}
-      <style>{`
-        .header-desktop-btn { display: none !important; }
-        .header-mobile-menu-btn { display: flex !important; }
-        @media (min-width: 768px) {
-          .header-desktop-btn { display: flex !important; }
-          .header-mobile-menu-btn { display: none !important; }
-        }
-        .header-btn-label {}
-      `}</style>
 
       <ReactFlow
         nodes={nodesWithCallbacks}
@@ -328,7 +332,7 @@ function FamilyCanvasInner({ initialNodes, initialEdges, people, rawCouples, isA
       </ReactFlow>
 
       {/* Empty state */}
-      {people.length === 0 && isAuthenticated && (
+      {people.length === 0 && (
         <div style={{
           position: 'absolute',
           top: '50%',
@@ -338,7 +342,9 @@ function FamilyCanvasInner({ initialNodes, initialEdges, people, rawCouples, isA
           pointerEvents: 'none',
           zIndex: 5,
         }}>
-          <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🌱</div>
+          <div style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'center' }}>
+            <Sprout size={56} color="var(--accent-color)" strokeWidth={1.5} />
+          </div>
           <h2 style={{ color: '#3d2e1c', fontWeight: '700', fontSize: '1.5rem', marginBottom: '0.5rem' }}>
             Votre arbre est vide
           </h2>
@@ -346,8 +352,11 @@ function FamilyCanvasInner({ initialNodes, initialEdges, people, rawCouples, isA
         </div>
       )}
 
-      {/* FAB */}
-      {isAuthenticated && <AddPersonButton />}
+      {/* Floating Action Button (+) */}
+      <AddPersonButton
+        isAuthenticated={isAuthenticated}
+        onRequireAuth={() => setShowAuthModal(true)}
+      />
 
       {/* People List Modal */}
       {showPeopleList && (
@@ -419,14 +428,18 @@ function AddChildModal({ coupleId, people, onClose }: { coupleId: string; people
       <div onClick={e => e.stopPropagation()} className="modal-card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
           <div>
-            <h2 style={{ margin: 0, fontSize: '1.25rem' }}>👶 Ajouter un enfant</h2>
+            <h2 style={{ margin: 0, fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Baby size={20} color="var(--accent-color)" /> Ajouter un enfant
+            </h2>
             <p style={{ margin: '4px 0 0', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Rattacher une personne existante à ce couple</p>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1.2rem' }}>✕</button>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', padding: 4 }}>
+            <X size={20} />
+          </button>
         </div>
         <form onSubmit={handleAdd} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <div>
-            <input type="text" placeholder="🔍 Rechercher par nom..." value={search} onChange={e => setSearch(e.target.value)} className="input-field" style={{ marginBottom: '8px' }} />
+            <input type="text" placeholder="Rechercher par nom..." value={search} onChange={e => setSearch(e.target.value)} className="input-field" style={{ marginBottom: '8px' }} />
             <select value={selectedChildId} onChange={e => setSelectedChildId(e.target.value)} className="input-field">
               <option value="">— Sélectionner l'enfant ({availableChildren.length}) —</option>
               {availableChildren.map(p => (<option key={p.id} value={p.id}>{p.firstName} {p.lastName ?? ''}</option>))}
@@ -465,16 +478,20 @@ function AddChildToPersonModal({ parentPersonId, people, onClose }: { parentPers
       <div onClick={e => e.stopPropagation()} className="modal-card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
           <div>
-            <h2 style={{ margin: 0, fontSize: '1.25rem' }}>👶 Ajouter un enfant</h2>
+            <h2 style={{ margin: 0, fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Baby size={20} color="var(--accent-color)" /> Ajouter un enfant
+            </h2>
             <p style={{ margin: '4px 0 0', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
               Pour : <strong style={{ color: 'var(--accent-color)' }}>{parent?.firstName} {parent?.lastName}</strong>
             </p>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1.2rem' }}>✕</button>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', padding: 4 }}>
+            <X size={20} />
+          </button>
         </div>
         <form onSubmit={handleAdd} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <div>
-            <input type="text" placeholder="🔍 Rechercher l'enfant par nom..." value={search} onChange={e => setSearch(e.target.value)} className="input-field" style={{ marginBottom: '8px' }} />
+            <input type="text" placeholder="Rechercher l'enfant par nom..." value={search} onChange={e => setSearch(e.target.value)} className="input-field" style={{ marginBottom: '8px' }} />
             <select value={selectedChildId} onChange={e => setSelectedChildId(e.target.value)} className="input-field">
               <option value="">— Sélectionner l'enfant ({availableChildren.length}) —</option>
               {availableChildren.map(p => (<option key={p.id} value={p.id}>{p.firstName} {p.lastName ?? ''}</option>))}

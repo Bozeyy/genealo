@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { PersonNodeData } from './PersonNode';
 import { useReactFlow } from 'reactflow';
+import { Users, X, LocateFixed, Pencil, Trash2 } from 'lucide-react';
 
 type Props = {
   people: PersonNodeData[];
@@ -39,9 +40,11 @@ export default function PeopleListModal({ people, onClose, onEdit, onDelete }: P
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
           <h2 style={{ margin: 0, fontSize: '1.25rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            👥 Membres <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 'normal' }}>({people.length})</span>
+            <Users size={20} color="var(--accent-color)" /> Membres <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 'normal' }}>({people.length})</span>
           </h2>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1.2rem' }}>✕</button>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', padding: 4 }}>
+            <X size={20} />
+          </button>
         </div>
 
         {/* Search */}
@@ -64,6 +67,14 @@ export default function PeopleListModal({ people, onClose, onEdit, onDelete }: P
               const initials = `${p.firstName.charAt(0)}${p.lastName ? p.lastName.charAt(0) : ''}`.toUpperCase();
               const birthYear = formatYear(p.birthDate);
               const deathYear = formatYear(p.deathDate);
+
+              const dateStr = birthYear && deathYear
+                ? `${birthYear} – ${deathYear}`
+                : birthYear
+                ? `° ${birthYear}`
+                : deathYear
+                ? `† ${deathYear}`
+                : null;
 
               return (
                 <div
@@ -108,10 +119,9 @@ export default function PeopleListModal({ people, onClose, onEdit, onDelete }: P
                       <div style={{ color: 'var(--text-primary)', fontWeight: '600', fontSize: '0.9rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {p.firstName} {p.lastName}
                       </div>
-                      {(birthYear || deathYear) && (
-                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.7rem' }}>
-                          {birthYear && <span>🎂 {birthYear}</span>}
-                          {deathYear && <span style={{ marginLeft: '6px' }}>✝️ {deathYear}</span>}
+                      {dateStr && (
+                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
+                          {dateStr}
                         </div>
                       )}
                     </div>
@@ -122,18 +132,24 @@ export default function PeopleListModal({ people, onClose, onEdit, onDelete }: P
                     <button
                       title="Localiser"
                       onClick={() => handleFocusNode(p.id)}
-                      style={{ background: 'var(--accent-light)', border: 'none', color: 'var(--accent-color)', borderRadius: '6px', width: '32px', height: '32px', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                    >🎯</button>
+                      style={{ background: 'var(--accent-light)', border: 'none', color: 'var(--accent-color)', borderRadius: '6px', width: '32px', height: '32px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    >
+                      <LocateFixed size={15} />
+                    </button>
                     {onEdit && <button
                       title="Modifier"
                       onClick={() => { onEdit(p.id); onClose(); }}
-                      style={{ background: 'var(--accent-light)', border: 'none', color: 'var(--accent-color)', borderRadius: '6px', width: '32px', height: '32px', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                    >✏️</button>}
+                      style={{ background: 'var(--accent-light)', border: 'none', color: 'var(--accent-color)', borderRadius: '6px', width: '32px', height: '32px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    >
+                      <Pencil size={15} />
+                    </button>}
                     {onDelete && <button
                       title="Supprimer"
                       onClick={() => { onDelete(p.id); }}
-                      style={{ background: 'rgba(180,60,60,0.08)', border: 'none', color: '#b03c3c', borderRadius: '6px', width: '32px', height: '32px', cursor: 'pointer', fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                    >🗑️</button>}
+                      style={{ background: 'rgba(180,60,60,0.08)', border: 'none', color: '#b03c3c', borderRadius: '6px', width: '32px', height: '32px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                    >
+                      <Trash2 size={15} />
+                    </button>}
                   </div>
                 </div>
               );
