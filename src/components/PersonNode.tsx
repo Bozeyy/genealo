@@ -75,17 +75,17 @@ function PersonNode({ data, selected }: NodeProps<PersonNodeData>) {
       }}
       style={{
         background: selected
-          ? 'linear-gradient(135deg, rgba(160,120,80,0.15), rgba(192,120,90,0.1))'
-          : 'rgba(255,252,248,0.92)',
+          ? 'linear-gradient(135deg, rgba(85,107,47,0.15), rgba(124,142,81,0.1))'
+          : 'rgba(254,253,249,0.94)',
         backdropFilter: 'blur(12px)',
-        border: `1.5px solid ${selected ? 'rgba(160,120,80,0.5)' : 'rgba(60,46,28,0.12)'}`,
+        border: `1.5px solid ${selected ? 'rgba(85,107,47,0.5)' : 'rgba(40,51,24,0.12)'}`,
         borderRadius: '12px',
         padding: isVertical ? '10px 8px' : '10px 14px',
         minWidth: isVertical ? '120px' : '160px',
         maxWidth: isVertical ? '140px' : '200px',
         boxShadow: selected
-          ? '0 0 0 2px rgba(160,120,80,0.3), 0 6px 24px rgba(60,46,28,0.12)'
-          : '0 2px 12px rgba(60,46,28,0.08)',
+          ? '0 0 0 2px rgba(85,107,47,0.3), 0 6px 24px rgba(40,51,24,0.12)'
+          : '0 2px 12px rgba(40,51,24,0.08)',
         cursor: 'pointer',
         transition: 'all 0.2s ease',
         position: 'relative',
@@ -185,7 +185,7 @@ function PersonNode({ data, selected }: NodeProps<PersonNodeData>) {
         width: isVertical ? '46px' : '40px',
         height: isVertical ? '46px' : '40px',
         borderRadius: '50%',
-        background: 'linear-gradient(135deg, #c0956a, #a07850)',
+        background: 'linear-gradient(135deg, #7c8e51, #556b2f)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',

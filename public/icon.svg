@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <rect width="512" height="512" rx="128" fill="#556b2f"/>
+  <!-- Branch lines -->
+  <path d="M 256 160 L 256 260 C 256 310, 160 290, 160 340" fill="none" stroke="#f7f6f0" stroke-width="20" stroke-linecap="round"/>
+  <path d="M 256 160 L 256 260 C 256 310, 352 290, 352 340" fill="none" stroke="#f7f6f0" stroke-width="20" stroke-linecap="round"/>
+  <!-- Top Node (Parent) -->
+  <circle cx="256" cy="150" r="54" fill="#f7f6f0"/>
+  <circle cx="256" cy="150" r="42" fill="#556b2f"/>
+  <!-- Union Node -->
+  <circle cx="256" cy="260" r="22" fill="#e894a6" stroke="#f7f6f0" stroke-width="6"/>
+  <!-- Bottom Left Node (Child 1) -->
+  <circle cx="160" cy="350" r="46" fill="#f7f6f0"/>
+  <circle cx="160" cy="350" r="34" fill="#7bb686"/>
+  <!-- Bottom Right Node (Child 2) -->
+  <circle cx="352" cy="350" r="46" fill="#f7f6f0"/>
+  <circle cx="352" cy="350" r="34" fill="#7bb686"/>
+</svg>

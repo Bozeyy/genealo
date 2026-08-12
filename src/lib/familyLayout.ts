@@ -54,9 +54,13 @@ export function buildFamilyGraph(people: PersonNodeData[], couples: RawCouple[],
     nodesMap.set(unionNodeId, unionNode);
     dagreGraph.setNode(unionNodeId, { width: 30, height: 30 });
 
+    // Violet foncé pour les liens de mariage / union
     const spouseEdgeStyle = isSep
-      ? { stroke: '#c49a3c', strokeWidth: 2, strokeDasharray: '6 4' }
-      : { stroke: '#c0785a', strokeWidth: 2.5 };
+      ? { stroke: '#8c387b', strokeWidth: 2, strokeDasharray: '6 4' }
+      : { stroke: '#5c2456', strokeWidth: 2.5 };
+
+    // Vert pastel pour les liens d'enfants / fratrie
+    const childEdgeStyle = { stroke: '#7bb686', strokeWidth: 2.5 };
 
     // Edge Partner 1 -> Union
     if (nodesMap.has(couple.partner1Id)) {
@@ -66,7 +70,7 @@ export function buildFamilyGraph(people: PersonNodeData[], couples: RawCouple[],
         source: couple.partner1Id,
         target: unionNodeId,
         type: 'smoothstep',
-        style: isSingleParent ? { stroke: '#7a9b6d', strokeWidth: 2.5 } : spouseEdgeStyle,
+        style: isSingleParent ? childEdgeStyle : spouseEdgeStyle,
       });
       dagreGraph.setEdge(couple.partner1Id, unionNodeId);
     }
@@ -84,7 +88,7 @@ export function buildFamilyGraph(people: PersonNodeData[], couples: RawCouple[],
       dagreGraph.setEdge(couple.partner2Id, unionNodeId);
     }
 
-    // Edges Union -> Children (Vibrant cyan-blue)
+    // Edges Union -> Children (Vert pastel)
     for (const child of couple.children) {
       if (nodesMap.has(child.id)) {
         const eChildId = `edge-${unionNodeId}-${child.id}`;
@@ -93,7 +97,7 @@ export function buildFamilyGraph(people: PersonNodeData[], couples: RawCouple[],
           source: unionNodeId,
           target: child.id,
           type: 'smoothstep',
-          style: { stroke: '#7a9b6d', strokeWidth: 2.5 },
+          style: childEdgeStyle,
         });
         dagreGraph.setEdge(unionNodeId, child.id);
       }

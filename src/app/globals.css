@@ -1,23 +1,23 @@
 :root {
-  --bg-color: #faf6f1;
-  --bg-dark: #f0e8de;
-  --bg-card: rgba(255, 252, 248, 0.92);
-  --bg-input: rgba(120, 100, 70, 0.06);
-  --text-primary: #3d2e1c;
-  --text-secondary: #8a7560;
-  --text-muted: #b5a48e;
-  --accent-color: #a07850;
-  --accent-hover: #8a6540;
-  --accent-light: rgba(160, 120, 80, 0.12);
-  --accent-border: rgba(160, 120, 80, 0.25);
+  --bg-color: #f7f6f0;
+  --bg-dark: #ebe7d9;
+  --bg-card: rgba(254, 253, 249, 0.94);
+  --bg-input: rgba(85, 107, 47, 0.06);
+  --text-primary: #283318;
+  --text-secondary: #5c6b45;
+  --text-muted: #919c7a;
+  --accent-color: #556b2f;
+  --accent-hover: #415323;
+  --accent-light: rgba(85, 107, 47, 0.12);
+  --accent-border: rgba(85, 107, 47, 0.28);
 
-  --couple-united: #c0785a;
-  --couple-separated: #c49a3c;
-  --child-link: #7a9b6d;
+  --couple-united: #5c2456;
+  --couple-separated: #8c387b;
+  --child-link: #7bb686;
 
-  --border-color: rgba(60, 46, 28, 0.1);
-  --border-hover: rgba(60, 46, 28, 0.2);
-  --glass-shadow: 0 4px 24px rgba(60, 46, 28, 0.08);
+  --border-color: rgba(40, 51, 24, 0.12);
+  --border-hover: rgba(40, 51, 24, 0.22);
+  --glass-shadow: 0 4px 24px rgba(40, 51, 24, 0.08);
   --card-radius: 14px;
 
   --font-sans: var(--font-geist-sans), "Inter", system-ui, sans-serif;

@@ -137,7 +137,7 @@ export default function AuthModal({ onClose, onSuccess }: AuthModalProps) {
               borderRadius: '12px',
               fontSize: '1rem',
               fontWeight: '600',
-              background: 'linear-gradient(135deg, #a07850, #8a6540)',
+              background: 'linear-gradient(135deg, #7c8e51, #556b2f)',
               opacity: (loading || !pin) ? 0.5 : 1,
               cursor: (loading || !pin) ? 'not-allowed' : 'pointer',
               boxShadow: '0 4px 16px rgba(160, 120, 80, 0.25)',

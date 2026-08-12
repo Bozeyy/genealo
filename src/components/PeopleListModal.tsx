@@ -100,7 +100,7 @@ export default function PeopleListModal({ people, onClose, onEdit, onDelete }: P
                       width: '34px',
                       height: '34px',
                       borderRadius: '50%',
-                      background: 'linear-gradient(135deg, #c0956a, #a07850)',
+                      background: 'linear-gradient(135deg, #7c8e51, #556b2f)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',

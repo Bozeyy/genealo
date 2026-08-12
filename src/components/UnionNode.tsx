@@ -70,8 +70,8 @@ function UnionNode({ data, selected }: NodeProps<UnionNodeData>) {
           height: 28,
           borderRadius: '50%',
           background: isSep
-            ? 'linear-gradient(135deg, #c49a3c, #a88030)'
-            : 'linear-gradient(135deg, #c0785a, #a06040)',
+            ? 'linear-gradient(135deg, #8c387b, #5e2254)'
+            : 'linear-gradient(135deg, #7b2c6e, #4a1842)',
           border: selected
             ? '2px solid var(--text-primary)'
             : isSep

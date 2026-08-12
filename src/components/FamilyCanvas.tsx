@@ -28,6 +28,7 @@ import { deleteCouple, addChildToCouple, addChildToPerson, removeChildFromCouple
 import { logout } from '@/actions/authActions';
 import { buildFamilyGraph, RawCouple } from '@/lib/familyLayout';
 import { GitFork, Users, Lock, Unlock, RectangleHorizontal, RectangleVertical, Heart, Wand2, Menu, X, Baby, Sprout, Loader2 } from 'lucide-react';
+import InstallPwaButton from './InstallPwaButton';
 
 const nodeTypes = {
   person: PersonNode,
@@ -184,7 +185,7 @@ function FamilyCanvasInner({ initialNodes, initialEdges, people, rawCouples, isA
   });
 
   return (
-    <div style={{ width: '100vw', height: '100vh', background: '#faf6f1', position: 'fixed', top: 0, left: 0 }}>
+    <div style={{ width: '100vw', height: '100vh', background: 'var(--bg-color)', position: 'fixed', top: 0, left: 0 }}>
       {/* Taskbar Header */}
       <div className="app-header">
         <div className="header-brand">
@@ -233,6 +234,9 @@ function FamilyCanvasInner({ initialNodes, initialEdges, people, rawCouples, isA
             </>
           )}
 
+          {/* PWA Install Button */}
+          <InstallPwaButton />
+
           {/* Lock / Unlock */}
           {isAuthenticated ? (
             <button onClick={handleLogout} className="header-btn header-btn-danger" title="Verrouiller l'édition">
@@ -263,7 +267,7 @@ function FamilyCanvasInner({ initialNodes, initialEdges, people, rawCouples, isA
           onClick={() => setMobileMenuOpen(false)}
           style={{
             position: 'fixed', inset: 0, zIndex: 15,
-            background: 'rgba(60,46,28,0.25)',
+            background: 'rgba(40,51,24,0.25)',
             backdropFilter: 'blur(4px)',
           }}
         >
@@ -273,14 +277,14 @@ function FamilyCanvasInner({ initialNodes, initialEdges, people, rawCouples, isA
               position: 'absolute',
               top: '55px',
               right: '0.5rem',
-              background: 'rgba(255,252,248,0.97)',
-              border: '1px solid rgba(60,46,28,0.12)',
+              background: 'rgba(254,253,249,0.97)',
+              border: '1px solid rgba(40,51,24,0.12)',
               borderRadius: '14px',
               padding: '0.6rem',
               display: 'flex',
               flexDirection: 'column',
               gap: '6px',
-              boxShadow: '0 8px 28px rgba(60,46,28,0.15)',
+              boxShadow: '0 8px 28px rgba(40,51,24,0.15)',
               minWidth: '220px',
               animation: 'fadeIn 0.15s ease-out',
             }}
@@ -322,12 +326,12 @@ function FamilyCanvasInner({ initialNodes, initialEdges, people, rawCouples, isA
           variant={BackgroundVariant.Dots}
           gap={24}
           size={1}
-          color="rgba(60,46,28,0.08)"
+          color="rgba(40,51,24,0.08)"
         />
         <Controls />
         <MiniMap
-          nodeColor={n => (n.type === 'union' ? '#c0785a' : '#a07850')}
-          maskColor="rgba(250,246,241,0.7)"
+          nodeColor={n => (n.type === 'union' ? '#5c2456' : '#556b2f')}
+          maskColor="rgba(247,246,240,0.7)"
         />
       </ReactFlow>
 
