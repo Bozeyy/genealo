@@ -10,12 +10,12 @@ export type RawCouple = {
 };
 
 /**
- * Builds a clear, intuitive family tree layout where:
- * 1. Parent couples without grandparents (e.g. Michele & Jacques) are pulled down to be EXACTLY ONE ROW ABOVE their children.
- * 2. Parent couples are centered DIRECTLY ABOVE their children.
- * 3. Siblings with the same parents stay grouped together side-by-side.
- * 4. Cross-family couples (e.g. Valérie & Sébastien) are positioned side-by-side with union nodes between them.
- * 5. A bottom-up alignment pass guarantees parent couples align over children without horizontal line crossing.
+ * Builds a clean, intuitive family tree layout where:
+ * 1. Spouses are ALWAYS placed side-by-side as an unbreakable couple unit with their union node centered between them.
+ * 2. Parent couples without grandparents are pulled down to sit EXACTLY ONE ROW ABOVE their children.
+ * 3. Parent couples are centered directly above their children.
+ * 4. Siblings with the same parents stay grouped together side-by-side.
+ * 5. Straight horizontal edges connect spouses to union nodes; step edges connect union nodes to children.
  */
 export function buildFamilyGraph(
   people: PersonNodeData[],
@@ -28,6 +28,7 @@ export function buildFamilyGraph(
   const rankSep = cardLayout === 'vertical' ? 260 : 220;
   const nodeGap = 70;
   const spouseGap = 50;
+  const coupleUnitSpan = cardWidth + spouseGap + unionSize + spouseGap + cardWidth;
 
   if (people.length === 0) return { nodes: [], edges: [] };
 
@@ -80,7 +81,7 @@ export function buildFamilyGraph(
     }
   }
 
-  // Pass B: Pull root parents DOWN so they sit EXACTLY 1 rank above their children (not floating at top)
+  // Pass B: Pull root parents DOWN so they sit EXACTLY 1 rank above their children
   changed = true;
   passes = 0;
   while (changed && passes < 50) {
@@ -95,7 +96,6 @@ export function buildFamilyGraph(
         couple.partner1Id !== couple.partner2Id &&
         Boolean(personById.get(couple.partner2Id)?.parentCoupleId);
 
-      // If neither partner has parents above them, align parent rank to (minChildRank - 1)
       if (!p1HasParent && !p2HasParent) {
         let minChildRank = 999;
         for (const child of couple.children) {
@@ -217,7 +217,17 @@ export function buildFamilyGraph(
 
       let fgWidth = 0;
       for (const pid of fg.people) {
-        fgWidth += cardWidth;
+        if (processedInRank.has(pid)) continue;
+        const pCouples = (couplesByPerson.get(pid) || []).filter(
+          c => rankMap.get(c.partner1Id) === r && rankMap.get(c.partner2Id) === r
+        );
+        const spouseCouple = pCouples.find(c => c.partner1Id !== c.partner2Id);
+
+        if (spouseCouple) {
+          fgWidth += coupleUnitSpan;
+        } else {
+          fgWidth += cardWidth;
+        }
       }
       if (fg.people.length > 1) {
         fgWidth += (fg.people.length - 1) * nodeGap;
@@ -232,41 +242,40 @@ export function buildFamilyGraph(
         const pid = fg.people[pIdx];
         if (processedInRank.has(pid)) continue;
 
-        personPositions.set(pid, { x: itemX, y: yLevel });
-        processedInRank.add(pid);
-        itemX += cardWidth;
+        const pCouples = (couplesByPerson.get(pid) || []).filter(
+          c => rankMap.get(c.partner1Id) === r && rankMap.get(c.partner2Id) === r
+        );
+        const spouseCouple = pCouples.find(c => c.partner1Id !== c.partner2Id);
+        const singleParentCouple = pCouples.find(c => c.partner1Id === c.partner2Id);
 
-        const pCouples = couplesByPerson.get(pid) || [];
-        for (const couple of pCouples) {
-          const spouseId = couple.partner1Id === pid ? couple.partner2Id : couple.partner1Id;
-          const isSingleParent = couple.partner1Id === couple.partner2Id;
+        if (spouseCouple) {
+          const spouseId = spouseCouple.partner1Id === pid ? spouseCouple.partner2Id : spouseCouple.partner1Id;
 
-          if (isSingleParent) {
-            unionPositions.set(couple.id, {
-              x: itemX - cardWidth / 2 - unionSize / 2,
+          // Always place Partner 1, Union, and Partner 2 side-by-side as an unbreakable block
+          personPositions.set(pid, { x: itemX, y: yLevel });
+          processedInRank.add(pid);
+          itemX += cardWidth + spouseGap;
+
+          unionPositions.set(spouseCouple.id, {
+            x: itemX,
+            y: yLevel + cardHeight / 2 - unionSize / 2,
+          });
+          itemX += unionSize + spouseGap;
+
+          personPositions.set(spouseId, { x: itemX, y: yLevel });
+          processedInRank.add(spouseId);
+          itemX += cardWidth;
+        } else {
+          personPositions.set(pid, { x: itemX, y: yLevel });
+          processedInRank.add(pid);
+
+          if (singleParentCouple) {
+            unionPositions.set(singleParentCouple.id, {
+              x: itemX + cardWidth / 2 - unionSize / 2,
               y: yLevel + cardHeight + 20,
             });
-          } else if (rankMap.get(spouseId) === r) {
-            const spousePos = personPositions.get(spouseId);
-            if (!spousePos && !processedInRank.has(spouseId)) {
-              itemX += spouseGap;
-              unionPositions.set(couple.id, {
-                x: itemX,
-                y: yLevel + cardHeight / 2 - unionSize / 2,
-              });
-              itemX += unionSize + spouseGap;
-
-              personPositions.set(spouseId, { x: itemX, y: yLevel });
-              processedInRank.add(spouseId);
-              itemX += cardWidth;
-            } else if (spousePos) {
-              const midX = (personPositions.get(pid)!.x + spousePos.x + cardWidth) / 2 - unionSize / 2;
-              unionPositions.set(couple.id, {
-                x: midX,
-                y: yLevel + cardHeight / 2 - unionSize / 2,
-              });
-            }
           }
+          itemX += cardWidth;
         }
 
         if (pIdx < fg.people.length - 1) {
@@ -323,25 +332,75 @@ export function buildFamilyGraph(
       }
     }
 
-    // Resolve any horizontal overlaps in rank r caused by shifting
+    // Resolve any horizontal overlaps in rank r while preserving couple blocks
     const rankPeople = pInRank.map(id => ({
       id,
       x: personPositions.get(id)?.x ?? 0,
     })).sort((a, b) => a.x - b.x);
 
     let curX = 0;
+    const handledInOverlap = new Set<string>();
+
     for (const rp of rankPeople) {
+      if (handledInOverlap.has(rp.id)) continue;
       const pPos = personPositions.get(rp.id);
-      if (pPos) {
+      if (!pPos) continue;
+
+      const pCouples = (couplesByPerson.get(rp.id) || []).filter(
+        c => rankMap.get(c.partner1Id) === r && rankMap.get(c.partner2Id) === r
+      );
+      const spouseCouple = pCouples.find(c => c.partner1Id !== c.partner2Id);
+
+      if (spouseCouple) {
+        const spouseId = spouseCouple.partner1Id === rp.id ? spouseCouple.partner2Id : spouseCouple.partner1Id;
+        const spousePos = personPositions.get(spouseId);
+
+        if (pPos.x < curX) {
+          pPos.x = curX;
+        }
+
+        if (spousePos) {
+          spousePos.x = pPos.x + cardWidth + 2 * spouseGap + unionSize;
+          handledInOverlap.add(spouseId);
+          curX = spousePos.x + cardWidth + nodeGap;
+        } else {
+          curX = pPos.x + cardWidth + nodeGap;
+        }
+        handledInOverlap.add(rp.id);
+      } else {
         if (pPos.x < curX) {
           pPos.x = curX;
         }
         curX = pPos.x + cardWidth + nodeGap;
+        handledInOverlap.add(rp.id);
       }
     }
   }
 
-  // 6. Build React Flow Nodes and Edges
+  // 6. Recalculate and Guarantee Union Node Centering for All Couples
+  for (const couple of couples) {
+    const isSingleParent = couple.partner1Id === couple.partner2Id;
+    const p1Pos = personPositions.get(couple.partner1Id);
+    const p2Pos = personPositions.get(couple.partner2Id);
+
+    if (isSingleParent && p1Pos) {
+      unionPositions.set(couple.id, {
+        x: p1Pos.x + cardWidth / 2 - unionSize / 2,
+        y: p1Pos.y + cardHeight + 20,
+      });
+    } else if (p1Pos && p2Pos) {
+      const leftP = p1Pos.x < p2Pos.x ? p1Pos : p2Pos;
+      const rightP = p1Pos.x < p2Pos.x ? p2Pos : p1Pos;
+
+      const centeredX = (leftP.x + cardWidth + rightP.x) / 2 - unionSize / 2;
+      unionPositions.set(couple.id, {
+        x: centeredX,
+        y: leftP.y + cardHeight / 2 - unionSize / 2,
+      });
+    }
+  }
+
+  // 7. Build React Flow Nodes and Edges
   const nodes: Node[] = [];
   const edges: Edge[] = [];
 
