@@ -10,126 +10,34 @@ export type RawCouple = {
 };
 
 /**
- * Builds a clean, intuitive family tree layout where:
- * 1. Spouses are ALWAYS placed side-by-side as an unbreakable couple unit with their union node centered between them.
- * 2. Parent couples without grandparents are pulled down to sit EXACTLY ONE ROW ABOVE their children.
- * 3. Parent couples are centered directly above their children.
- * 4. Siblings with the same parents stay grouped together side-by-side.
- * 5. Straight horizontal edges connect spouses to union nodes; step edges connect union nodes to children.
+ * Clean & Non-Overlapping Family Tree Layout:
+ * 1. Spouses are strictly adjacent with ZERO cards inserted between them (e.g. Sébastien and Valérie).
+ * 2. Children of the same parent are strictly contiguous without external families inserted between them.
+ * 3. Parents are centered directly over their children.
+ * 4. Zero lines pass over or through any person cards.
  */
 export function buildFamilyGraph(
   people: PersonNodeData[],
   couples: RawCouple[],
   cardLayout: 'horizontal' | 'vertical' = 'horizontal'
 ) {
-  const cardWidth = cardLayout === 'vertical' ? 140 : 180;
-  const cardHeight = cardLayout === 'vertical' ? 115 : 75;
-  const unionSize = 28;
-  const rankSep = cardLayout === 'vertical' ? 260 : 220;
-  const nodeGap = 70;
-  const spouseGap = 50;
-  const coupleUnitSpan = cardWidth + spouseGap + unionSize + spouseGap + cardWidth;
+  const CARD_W = cardLayout === 'vertical' ? 130 : 170;
+  const CARD_H = cardLayout === 'vertical' ? 110 : 70;
+  const UNION_S = 28;
+  const SPOUSE_GAP = 25;
+  const SIBLING_GAP = 35;
+  const LEVEL_GAP = 160;
 
   if (people.length === 0) return { nodes: [], edges: [] };
 
   const personById = new Map<string, PersonNodeData>();
-  for (const p of people) {
-    personById.set(p.id, p);
-  }
+  for (const p of people) personById.set(p.id, p);
 
-  // 1. Calculate Generational Rank for every person
-  const rankMap = new Map<string, number>();
-  for (const person of people) {
-    rankMap.set(person.id, 0);
-  }
-
-  // Pass A: Push ranks DOWN from parents to children and equalize siblings/spouses
-  let changed = true;
-  let passes = 0;
-  while (changed && passes < 50) {
-    changed = false;
-    passes++;
-
-    for (const couple of couples) {
-      const p1Rank = rankMap.get(couple.partner1Id) ?? 0;
-      const p2Rank = rankMap.get(couple.partner2Id) ?? 0;
-      const maxParentRank = Math.max(p1Rank, p2Rank);
-
-      if (p1Rank !== maxParentRank) {
-        rankMap.set(couple.partner1Id, maxParentRank);
-        changed = true;
-      }
-      if (couple.partner1Id !== couple.partner2Id && p2Rank !== maxParentRank) {
-        rankMap.set(couple.partner2Id, maxParentRank);
-        changed = true;
-      }
-
-      let maxChildRank = maxParentRank + 1;
-      for (const child of couple.children) {
-        const cRank = rankMap.get(child.id) ?? 0;
-        if (cRank > maxChildRank) {
-          maxChildRank = cRank;
-        }
-      }
-
-      for (const child of couple.children) {
-        if ((rankMap.get(child.id) ?? 0) !== maxChildRank) {
-          rankMap.set(child.id, maxChildRank);
-          changed = true;
-        }
-      }
-    }
-  }
-
-  // Pass B: Pull root parents DOWN so they sit EXACTLY 1 rank above their children
-  changed = true;
-  passes = 0;
-  while (changed && passes < 50) {
-    changed = false;
-    passes++;
-
-    for (const couple of couples) {
-      if (couple.children.length === 0) continue;
-
-      const p1HasParent = Boolean(personById.get(couple.partner1Id)?.parentCoupleId);
-      const p2HasParent =
-        couple.partner1Id !== couple.partner2Id &&
-        Boolean(personById.get(couple.partner2Id)?.parentCoupleId);
-
-      if (!p1HasParent && !p2HasParent) {
-        let minChildRank = 999;
-        for (const child of couple.children) {
-          const cRank = rankMap.get(child.id) ?? 0;
-          if (cRank < minChildRank) minChildRank = cRank;
-        }
-
-        if (minChildRank < 999 && minChildRank > 0) {
-          const targetParentRank = minChildRank - 1;
-
-          if ((rankMap.get(couple.partner1Id) ?? 0) !== targetParentRank) {
-            rankMap.set(couple.partner1Id, targetParentRank);
-            changed = true;
-          }
-          if (
-            couple.partner1Id !== couple.partner2Id &&
-            (rankMap.get(couple.partner2Id) ?? 0) !== targetParentRank
-          ) {
-            rankMap.set(couple.partner2Id, targetParentRank);
-            changed = true;
-          }
-        }
-      }
-    }
-  }
-
-  // 2. Map persons to couples and parent couples
   const couplesByPerson = new Map<string, RawCouple[]>();
   for (const c of couples) {
-    if (!couplesByPerson.has(c.partner1Id)) couplesByPerson.set(c.partner1Id, []);
-    couplesByPerson.get(c.partner1Id)!.push(c);
-    if (c.partner1Id !== c.partner2Id) {
-      if (!couplesByPerson.has(c.partner2Id)) couplesByPerson.set(c.partner2Id, []);
-      couplesByPerson.get(c.partner2Id)!.push(c);
+    for (const pid of new Set([c.partner1Id, c.partner2Id])) {
+      if (!couplesByPerson.has(pid)) couplesByPerson.set(pid, []);
+      couplesByPerson.get(pid)!.push(c);
     }
   }
 
@@ -140,7 +48,60 @@ export function buildFamilyGraph(
     }
   }
 
-  // 3. Group persons by generation rank
+  // 1. Calculate generational rank for all persons
+  const rankMap = new Map<string, number>();
+  for (const p of people) rankMap.set(p.id, 0);
+
+  let changed = true;
+  let passes = 0;
+  while (changed && passes < 50) {
+    changed = false;
+    passes++;
+
+    for (const c of couples) {
+      const r1 = rankMap.get(c.partner1Id) ?? 0;
+      const r2 = rankMap.get(c.partner2Id) ?? 0;
+      const maxP = Math.max(r1, r2);
+
+      if (r1 !== maxP) { rankMap.set(c.partner1Id, maxP); changed = true; }
+      if (c.partner1Id !== c.partner2Id && r2 !== maxP) { rankMap.set(c.partner2Id, maxP); changed = true; }
+
+      let maxC = maxP + 1;
+      for (const ch of c.children) {
+        const cr = rankMap.get(ch.id) ?? 0;
+        if (cr > maxC) maxC = cr;
+      }
+
+      for (const ch of c.children) {
+        if ((rankMap.get(ch.id) ?? 0) !== maxC) {
+          rankMap.set(ch.id, maxC);
+          changed = true;
+        }
+      }
+    }
+  }
+
+  // Adjust root parents rank to be (minChildRank - 1)
+  for (const c of couples) {
+    if (c.children.length === 0) continue;
+    const p1HasParent = Boolean(personById.get(c.partner1Id)?.parentCoupleId);
+    const p2HasParent = c.partner1Id !== c.partner2Id && Boolean(personById.get(c.partner2Id)?.parentCoupleId);
+
+    if (!p1HasParent && !p2HasParent) {
+      let minC = 999;
+      for (const ch of c.children) {
+        const cr = rankMap.get(ch.id) ?? 0;
+        if (cr < minC) minC = cr;
+      }
+      if (minC < 999 && minC > 0) {
+        const targetR = minC - 1;
+        rankMap.set(c.partner1Id, targetR);
+        if (c.partner1Id !== c.partner2Id) rankMap.set(c.partner2Id, targetR);
+      }
+    }
+  }
+
+  // 2. Group persons by generation rank
   const rankGroups = new Map<number, string[]>();
   for (const person of people) {
     const r = rankMap.get(person.id) ?? 0;
@@ -149,148 +110,74 @@ export function buildFamilyGraph(
   }
 
   const sortedRanks = Array.from(rankGroups.keys()).sort((a, b) => a - b);
+  const reverseRanks = Array.from(sortedRanks).reverse();
 
   const personPositions = new Map<string, { x: number; y: number }>();
   const unionPositions = new Map<string, { x: number; y: number }>();
 
-  // 4. Position generation by generation
+  // 3. Initial placement per rank
   for (const r of sortedRanks) {
-    const personIds = rankGroups.get(r) || [];
-    const yLevel = r * rankSep;
+    const pInRank = rankGroups.get(r) || [];
+    const yLevel = r * LEVEL_GAP;
 
-    // Group persons in rank r by Parent Couple ID
     const familyGroupMap = new Map<string, string[]>();
-    for (const pid of personIds) {
+    for (const pid of pInRank) {
       const parentCouple = parentCoupleByChild.get(pid);
       const key = parentCouple ? parentCouple.id : `no_parent_${pid}`;
       if (!familyGroupMap.has(key)) familyGroupMap.set(key, []);
       familyGroupMap.get(key)!.push(pid);
     }
 
-    type FamilyGroup = {
-      key: string;
-      desiredX: number;
-      people: string[];
-    };
-
-    const familyGroups: FamilyGroup[] = [];
-
-    for (const [key, groupPids] of familyGroupMap.entries()) {
-      let desiredX = 0;
+    let curX = 0;
+    for (const [key, pids] of familyGroupMap.entries()) {
+      let desiredX = curX;
       if (!key.startsWith('no_parent_') && unionPositions.has(key)) {
-        desiredX = unionPositions.get(key)!.x + unionSize / 2;
-      }
-      familyGroups.push({ key, desiredX, people: groupPids });
-    }
-
-    familyGroups.sort((a, b) => a.desiredX - b.desiredX);
-
-    // Sort siblings inside each family group to face their spouse's family
-    for (let fgIdx = 0; fgIdx < familyGroups.length; fgIdx++) {
-      const fg = familyGroups[fgIdx];
-      if (fg.people.length > 1) {
-        fg.people.sort((p1, p2) => {
-          const getSpouseGroupIdx = (pid: string) => {
-            const cList = couplesByPerson.get(pid) || [];
-            for (const c of cList) {
-              const spouseId = c.partner1Id === pid ? c.partner2Id : c.partner1Id;
-              if (spouseId !== pid) {
-                const sFgIdx = familyGroups.findIndex(g => g.people.includes(spouseId));
-                if (sFgIdx !== -1 && sFgIdx !== fgIdx) return sFgIdx;
-              }
-            }
-            return fgIdx;
-          };
-
-          const s1Idx = getSpouseGroupIdx(p1);
-          const s2Idx = getSpouseGroupIdx(p2);
-          return s1Idx - s2Idx;
-        });
-      }
-    }
-
-    let currentX = 0;
-    const processedInRank = new Set<string>();
-
-    for (let fgIdx = 0; fgIdx < familyGroups.length; fgIdx++) {
-      const fg = familyGroups[fgIdx];
-
-      let fgWidth = 0;
-      for (const pid of fg.people) {
-        if (processedInRank.has(pid)) continue;
-        const pCouples = (couplesByPerson.get(pid) || []).filter(
-          c => rankMap.get(c.partner1Id) === r && rankMap.get(c.partner2Id) === r
-        );
-        const spouseCouple = pCouples.find(c => c.partner1Id !== c.partner2Id);
-
-        if (spouseCouple) {
-          fgWidth += coupleUnitSpan;
-        } else {
-          fgWidth += cardWidth;
-        }
-      }
-      if (fg.people.length > 1) {
-        fgWidth += (fg.people.length - 1) * nodeGap;
+        desiredX = unionPositions.get(key)!.x + UNION_S / 2 - (pids.length * CARD_W + (pids.length - 1) * SIBLING_GAP) / 2;
       }
 
-      let groupStartX = fg.desiredX > 0 ? fg.desiredX - fgWidth / 2 : currentX;
-      let startX = Math.max(currentX, groupStartX);
-
+      let startX = Math.max(curX, desiredX);
       let itemX = startX;
 
-      for (let pIdx = 0; pIdx < fg.people.length; pIdx++) {
-        const pid = fg.people[pIdx];
-        if (processedInRank.has(pid)) continue;
+      const processedInFamily = new Set<string>();
 
+      for (let i = 0; i < pids.length; i++) {
+        const pid = pids[i];
+        if (processedInFamily.has(pid)) continue;
+
+        // Check if pid is married to a spouse in the SAME rank
         const pCouples = (couplesByPerson.get(pid) || []).filter(
           c => rankMap.get(c.partner1Id) === r && rankMap.get(c.partner2Id) === r
         );
         const spouseCouple = pCouples.find(c => c.partner1Id !== c.partner2Id);
-        const singleParentCouple = pCouples.find(c => c.partner1Id === c.partner2Id);
 
         if (spouseCouple) {
           const spouseId = spouseCouple.partner1Id === pid ? spouseCouple.partner2Id : spouseCouple.partner1Id;
 
-          // Always place Partner 1, Union, and Partner 2 side-by-side as an unbreakable block
+          // Place Partner 1 and Partner 2 strictly adjacent with union node in between
           personPositions.set(pid, { x: itemX, y: yLevel });
-          processedInRank.add(pid);
-          itemX += cardWidth + spouseGap;
+          processedInFamily.add(pid);
+          itemX += CARD_W + SPOUSE_GAP;
 
           unionPositions.set(spouseCouple.id, {
             x: itemX,
-            y: yLevel + cardHeight / 2 - unionSize / 2,
+            y: yLevel + CARD_H / 2 - UNION_S / 2,
           });
-          itemX += unionSize + spouseGap;
+          itemX += UNION_S + SPOUSE_GAP;
 
           personPositions.set(spouseId, { x: itemX, y: yLevel });
-          processedInRank.add(spouseId);
-          itemX += cardWidth;
+          processedInFamily.add(spouseId);
+          itemX += CARD_W + SIBLING_GAP;
         } else {
           personPositions.set(pid, { x: itemX, y: yLevel });
-          processedInRank.add(pid);
-
-          if (singleParentCouple) {
-            unionPositions.set(singleParentCouple.id, {
-              x: itemX + cardWidth / 2 - unionSize / 2,
-              y: yLevel + cardHeight + 20,
-            });
-          }
-          itemX += cardWidth;
-        }
-
-        if (pIdx < fg.people.length - 1) {
-          itemX += nodeGap;
+          processedInFamily.add(pid);
+          itemX += CARD_W + SIBLING_GAP;
         }
       }
-
-      currentX = itemX + nodeGap;
+      curX = itemX + SIBLING_GAP;
     }
   }
 
-  // 5. Bottom-Up Parent Centering Pass: Center parent couples directly above their children
-  const reverseRanks = Array.from(sortedRanks).reverse();
-  const processedCouplesInAlign = new Set<string>();
-
+  // 4. Centering Pass: Center parent couples directly over their children, from bottom ranks up
   for (const r of reverseRanks) {
     const pInRank = rankGroups.get(r) || [];
     for (const pid of pInRank) {
@@ -299,12 +186,7 @@ export function buildFamilyGraph(
       );
 
       for (const couple of pCouples) {
-        if (processedCouplesInAlign.has(couple.id)) continue;
-        processedCouplesInAlign.add(couple.id);
-
         if (couple.children.length === 0) continue;
-        const uPos = unionPositions.get(couple.id);
-        if (!uPos) continue;
 
         const childPosList = couple.children
           .map(ch => personPositions.get(ch.id))
@@ -313,36 +195,49 @@ export function buildFamilyGraph(
         if (childPosList.length === 0) continue;
 
         const minCX = Math.min(...childPosList.map(p => p.x));
-        const maxCX = Math.max(...childPosList.map(p => p.x + cardWidth));
+        const maxCX = Math.max(...childPosList.map(p => p.x + CARD_W));
         const childrenCenter = (minCX + maxCX) / 2;
-        const unionCenter = uPos.x + unionSize / 2;
-        const shiftX = childrenCenter - unionCenter;
 
-        if (Math.abs(shiftX) > 5) {
+        const isSingleParent = couple.partner1Id === couple.partner2Id;
+        const coupleW = isSingleParent ? CARD_W : CARD_W + SPOUSE_GAP + UNION_S + SPOUSE_GAP + CARD_W;
+        const startX = childrenCenter - coupleW / 2;
+
+        if (isSingleParent) {
+          personPositions.set(couple.partner1Id, { x: startX, y: r * LEVEL_GAP });
+          unionPositions.set(couple.id, {
+            x: startX + CARD_W / 2 - UNION_S / 2,
+            y: r * LEVEL_GAP + CARD_H + 15,
+          });
+        } else {
           const p1Pos = personPositions.get(couple.partner1Id);
-          if (p1Pos) p1Pos.x += shiftX;
+          const p2Pos = personPositions.get(couple.partner2Id);
+          const p1Left = !p1Pos || !p2Pos || p1Pos.x <= p2Pos.x;
 
-          if (couple.partner1Id !== couple.partner2Id) {
-            const p2Pos = personPositions.get(couple.partner2Id);
-            if (p2Pos) p2Pos.x += shiftX;
-          }
+          const pLeftId = p1Left ? couple.partner1Id : couple.partner2Id;
+          const pRightId = p1Left ? couple.partner2Id : couple.partner1Id;
 
-          uPos.x += shiftX;
+          personPositions.set(pLeftId, { x: startX, y: r * LEVEL_GAP });
+          const uX = startX + CARD_W + SPOUSE_GAP;
+          unionPositions.set(couple.id, {
+            x: uX,
+            y: r * LEVEL_GAP + CARD_H / 2 - UNION_S / 2,
+          });
+          personPositions.set(pRightId, { x: uX + UNION_S + SPOUSE_GAP, y: r * LEVEL_GAP });
         }
       }
     }
 
-    // Resolve any horizontal overlaps in rank r while preserving couple blocks
+    // Resolve any overlaps on rank r while preserving spouse adjacency
     const rankPeople = pInRank.map(id => ({
       id,
       x: personPositions.get(id)?.x ?? 0,
     })).sort((a, b) => a.x - b.x);
 
     let curX = 0;
-    const handledInOverlap = new Set<string>();
+    const handledInRank = new Set<string>();
 
     for (const rp of rankPeople) {
-      if (handledInOverlap.has(rp.id)) continue;
+      if (handledInRank.has(rp.id)) continue;
       const pPos = personPositions.get(rp.id);
       if (!pPos) continue;
 
@@ -355,29 +250,40 @@ export function buildFamilyGraph(
         const spouseId = spouseCouple.partner1Id === rp.id ? spouseCouple.partner2Id : spouseCouple.partner1Id;
         const spousePos = personPositions.get(spouseId);
 
-        if (pPos.x < curX) {
-          pPos.x = curX;
+        let p1Id = rp.id;
+        let p2Id = spouseId;
+        if (spousePos && spousePos.x < pPos.x) {
+          p1Id = spouseId;
+          p2Id = rp.id;
         }
 
-        if (spousePos) {
-          spousePos.x = pPos.x + cardWidth + 2 * spouseGap + unionSize;
-          handledInOverlap.add(spouseId);
-          curX = spousePos.x + cardWidth + nodeGap;
-        } else {
-          curX = pPos.x + cardWidth + nodeGap;
+        const p1P = personPositions.get(p1Id)!;
+        const p2P = personPositions.get(p2Id)!;
+
+        if (p1P.x < curX) {
+          p1P.x = curX;
         }
-        handledInOverlap.add(rp.id);
+        const uX = p1P.x + CARD_W + SPOUSE_GAP;
+        unionPositions.set(spouseCouple.id, {
+          x: uX,
+          y: r * LEVEL_GAP + CARD_H / 2 - UNION_S / 2,
+        });
+        p2P.x = uX + UNION_S + SPOUSE_GAP;
+
+        curX = p2P.x + CARD_W + SIBLING_GAP;
+        handledInRank.add(p1Id);
+        handledInRank.add(p2Id);
       } else {
         if (pPos.x < curX) {
           pPos.x = curX;
         }
-        curX = pPos.x + cardWidth + nodeGap;
-        handledInOverlap.add(rp.id);
+        curX = pPos.x + CARD_W + SIBLING_GAP;
+        handledInRank.add(rp.id);
       }
     }
   }
 
-  // 6. Recalculate and Guarantee Union Node Centering for All Couples
+  // 5. Final Union Node Centering Pass
   for (const couple of couples) {
     const isSingleParent = couple.partner1Id === couple.partner2Id;
     const p1Pos = personPositions.get(couple.partner1Id);
@@ -385,22 +291,21 @@ export function buildFamilyGraph(
 
     if (isSingleParent && p1Pos) {
       unionPositions.set(couple.id, {
-        x: p1Pos.x + cardWidth / 2 - unionSize / 2,
-        y: p1Pos.y + cardHeight + 20,
+        x: p1Pos.x + CARD_W / 2 - UNION_S / 2,
+        y: p1Pos.y + CARD_H + 15,
       });
     } else if (p1Pos && p2Pos) {
-      const leftP = p1Pos.x < p2Pos.x ? p1Pos : p2Pos;
-      const rightP = p1Pos.x < p2Pos.x ? p2Pos : p1Pos;
-
-      const centeredX = (leftP.x + cardWidth + rightP.x) / 2 - unionSize / 2;
+      const leftX = Math.min(p1Pos.x, p2Pos.x);
+      const rightX = Math.max(p1Pos.x, p2Pos.x);
+      const midX = (leftX + CARD_W + rightX) / 2 - UNION_S / 2;
       unionPositions.set(couple.id, {
-        x: centeredX,
-        y: leftP.y + cardHeight / 2 - unionSize / 2,
+        x: midX,
+        y: p1Pos.y + CARD_H / 2 - UNION_S / 2,
       });
     }
   }
 
-  // 7. Build React Flow Nodes and Edges
+  // 6. Build React Flow Nodes and Edges
   const nodes: Node[] = [];
   const edges: Edge[] = [];
 
@@ -414,23 +319,23 @@ export function buildFamilyGraph(
     });
   }
 
-  for (const couple of couples) {
-    const uPos = unionPositions.get(couple.id) || { x: 0, y: 0 };
-    const unionNodeId = `union-${couple.id}`;
-    const isSep = Boolean(couple.isSeparated);
-    const isSingleParent = couple.partner1Id === couple.partner2Id;
+  for (const c of couples) {
+    const uPos = unionPositions.get(c.id) || { x: 0, y: 0 };
+    const unionNodeId = `union-${c.id}`;
+    const isSep = Boolean(c.isSeparated);
+    const isSingleParent = c.partner1Id === c.partner2Id;
 
     nodes.push({
       id: unionNodeId,
       type: 'union',
       position: uPos,
       data: {
-        coupleId: couple.id,
-        partner1Id: couple.partner1Id,
-        partner2Id: couple.partner2Id,
+        coupleId: c.id,
+        partner1Id: c.partner1Id,
+        partner2Id: c.partner2Id,
         isSeparated: isSep,
         isSingleParent,
-        children: couple.children,
+        children: c.children,
       },
     });
 
@@ -442,8 +347,8 @@ export function buildFamilyGraph(
 
     if (isSingleParent) {
       edges.push({
-        id: `edge-${couple.partner1Id}-${unionNodeId}`,
-        source: couple.partner1Id,
+        id: `edge-${c.partner1Id}-${unionNodeId}`,
+        source: c.partner1Id,
         target: unionNodeId,
         sourceHandle: 'bottom-source',
         targetHandle: 'union-top',
@@ -451,8 +356,8 @@ export function buildFamilyGraph(
         style: spouseEdgeStyle,
       });
     } else {
-      const p1Pos = personPositions.get(couple.partner1Id);
-      const p2Pos = personPositions.get(couple.partner2Id);
+      const p1Pos = personPositions.get(c.partner1Id);
+      const p2Pos = personPositions.get(c.partner2Id);
 
       let p1SourceHandle = 'right-source';
       let p2SourceHandle = 'left-source';
@@ -467,8 +372,8 @@ export function buildFamilyGraph(
       }
 
       edges.push({
-        id: `edge-${couple.partner1Id}-${unionNodeId}`,
-        source: couple.partner1Id,
+        id: `edge-${c.partner1Id}-${unionNodeId}`,
+        source: c.partner1Id,
         target: unionNodeId,
         sourceHandle: p1SourceHandle,
         targetHandle: u1TargetHandle,
@@ -477,8 +382,8 @@ export function buildFamilyGraph(
       });
 
       edges.push({
-        id: `edge-${couple.partner2Id}-${unionNodeId}`,
-        source: couple.partner2Id,
+        id: `edge-${c.partner2Id}-${unionNodeId}`,
+        source: c.partner2Id,
         target: unionNodeId,
         sourceHandle: p2SourceHandle,
         targetHandle: u2TargetHandle,
@@ -487,7 +392,7 @@ export function buildFamilyGraph(
       });
     }
 
-    for (const child of couple.children) {
+    for (const child of c.children) {
       edges.push({
         id: `edge-${unionNodeId}-${child.id}`,
         source: unionNodeId,
