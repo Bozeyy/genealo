@@ -39,6 +39,8 @@ export default async function Home() {
     deathDate: p.deathDate?.toISOString() ?? null,
     photoUrl: p.photoUrl,
     parentCoupleId: p.parentCoupleId,
+    positionX: p.positionX,
+    positionY: p.positionY,
   }));
 
   const rawCouples: RawCouple[] = couples.map(c => ({

@@ -83,3 +83,45 @@ export async function deletePerson(id: string) {
   revalidatePath('/');
   return { success: true };
 }
+
+export async function saveAllPositions(positions: { id: string; x: number; y: number }[]) {
+  const { allowed } = await checkRateLimit('updatePersonPosition', { limit: 150, windowMs: 60 * 1000 });
+  if (!allowed || !(await checkAuth())) return;
+
+  try {
+    await prisma.$transaction(
+      positions.map(p =>
+        prisma.person.update({
+          where: { id: p.id },
+          data: { positionX: p.x, positionY: p.y },
+        })
+      )
+    );
+    revalidatePath('/');
+  } catch (error) {
+    console.error('Erreur lors de la sauvegarde des positions:', error);
+  }
+}
+
+export async function resetAllPositions() {
+  await enforceRateLimit('updatePerson', { limit: 15, windowMs: 60 * 1000 });
+  if (!(await checkAuth())) throw new Error('Non autorisé');
+
+  const people = await prisma.person.findMany({ select: { id: true }, orderBy: { createdAt: 'asc' } });
+  const cols = Math.max(1, Math.ceil(Math.sqrt(people.length)));
+
+  await prisma.$transaction(
+    people.map((p, i) => {
+      const x = (i % cols) * 200;
+      const y = Math.floor(i / cols) * 200;
+      return prisma.person.update({
+        where: { id: p.id },
+        data: { positionX: x, positionY: y },
+      });
+    })
+  );
+
+  revalidatePath('/');
+  return { success: true };
+}
+

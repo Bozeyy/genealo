@@ -13,7 +13,8 @@ export type PersonNodeData = {
   deathDate?: string | null;
   photoUrl?: string | null;
   parentCoupleId?: string | null;
-  cardLayout?: 'horizontal' | 'vertical';
+  positionX?: number;
+  positionY?: number;
   onEdit?: (id: string) => void;
   onDelete?: (id: string) => void;
   onCreateCouple?: (id: string) => void;
@@ -26,7 +27,6 @@ function PersonNode({ data, selected }: NodeProps<PersonNodeData>) {
   const [mounted, setMounted] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const hasActions = data.onEdit || data.onDelete || data.onCreateCouple;
-  const isVertical = data.cardLayout === 'vertical';
 
   useEffect(() => {
     setMounted(true);
@@ -80,9 +80,9 @@ function PersonNode({ data, selected }: NodeProps<PersonNodeData>) {
         backdropFilter: 'blur(12px)',
         border: `1.5px solid ${selected ? 'rgba(85,107,47,0.5)' : 'rgba(40,51,24,0.12)'}`,
         borderRadius: '12px',
-        padding: isVertical ? '10px 8px' : '10px 14px',
-        minWidth: isVertical ? '120px' : '160px',
-        maxWidth: isVertical ? '140px' : '200px',
+        padding: '10px 8px',
+        width: '130px',
+        height: '110px',
         boxShadow: selected
           ? '0 0 0 2px rgba(85,107,47,0.3), 0 6px 24px rgba(40,51,24,0.12)'
           : '0 2px 12px rgba(40,51,24,0.08)',
@@ -90,10 +90,10 @@ function PersonNode({ data, selected }: NodeProps<PersonNodeData>) {
         transition: 'all 0.2s ease',
         position: 'relative',
         display: 'flex',
-        flexDirection: isVertical ? 'column' : 'row',
+        flexDirection: 'column',
         alignItems: 'center',
-        justifyContent: isVertical ? 'center' : 'flex-start',
-        textAlign: isVertical ? 'center' : 'left',
+        justifyContent: 'center',
+        textAlign: 'center',
       }}
     >
       {/* Handles */}
@@ -182,8 +182,8 @@ function PersonNode({ data, selected }: NodeProps<PersonNodeData>) {
       {/* Card content */}
       {/* Avatar */}
       <div style={{
-        width: isVertical ? '46px' : '40px',
-        height: isVertical ? '46px' : '40px',
+        width: '46px',
+        height: '46px',
         borderRadius: '50%',
         background: 'linear-gradient(135deg, #7c8e51, #556b2f)',
         display: 'flex',
@@ -191,11 +191,11 @@ function PersonNode({ data, selected }: NodeProps<PersonNodeData>) {
         justifyContent: 'center',
         flexShrink: 0,
         overflow: 'hidden',
-        fontSize: isVertical ? '14px' : '13px',
+        fontSize: '14px',
         fontWeight: '700',
         color: '#fff',
-        marginBottom: isVertical ? '6px' : '0',
-        marginRight: isVertical ? '0' : '10px',
+        marginBottom: '6px',
+        marginRight: '0',
       }}>
         {data.photoUrl ? (
           <img src={data.photoUrl} alt={initials} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />

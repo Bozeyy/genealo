@@ -9,324 +9,453 @@ export type RawCouple = {
   children: { id: string; firstName: string; lastName?: string | null }[];
 };
 
-/**
- * Clean & Non-Overlapping Family Tree Layout:
- * 1. Spouses are strictly adjacent with ZERO cards inserted between them (e.g. Sébastien and Valérie).
- * 2. Children of the same parent are strictly contiguous without external families inserted between them.
- * 3. Parents are centered directly over their children.
- * 4. Zero lines pass over or through any person cards.
- */
+// ============================================================
+//  CLEAN FAMILY GRAPH LAYOUT
+//  Strictly places:
+//  - Couples side-by-side with union node between them
+//  - Children directly below their parent couple's union node
+// ============================================================
+
 export function buildFamilyGraph(
   people: PersonNodeData[],
   couples: RawCouple[],
-  cardLayout: 'horizontal' | 'vertical' = 'horizontal'
+  options?: { forceAutoLayout?: boolean }
 ) {
-  const CARD_W = cardLayout === 'vertical' ? 130 : 170;
-  const CARD_H = cardLayout === 'vertical' ? 110 : 70;
+  const CARD_W = 130;
+  const CARD_H = 110;
   const UNION_S = 28;
-  const SPOUSE_GAP = 25;
-  const SIBLING_GAP = 35;
-  const LEVEL_GAP = 160;
+  const SPOUSE_GAP = 50;
 
   if (people.length === 0) return { nodes: [], edges: [] };
 
-  const personById = new Map<string, PersonNodeData>();
-  for (const p of people) personById.set(p.id, p);
+  const hasSavedPositions = people.some(p => p.positionX !== null && p.positionX !== undefined && p.positionY !== null && p.positionY !== undefined);
+  const useSavedPositions = hasSavedPositions && !options?.forceAutoLayout;
 
-  const couplesByPerson = new Map<string, RawCouple[]>();
+  const coupleById = new Map<string, RawCouple>(couples.map(c => [c.id, c]));
+  const couplesByPid = new Map<string, string[]>();
   for (const c of couples) {
-    for (const pid of new Set([c.partner1Id, c.partner2Id])) {
-      if (!couplesByPerson.has(pid)) couplesByPerson.set(pid, []);
-      couplesByPerson.get(pid)!.push(c);
+    for (const pid of [c.partner1Id, c.partner2Id]) {
+      if (!couplesByPid.has(pid)) couplesByPid.set(pid, []);
+      couplesByPid.get(pid)!.push(c.id);
     }
   }
 
-  const parentCoupleByChild = new Map<string, RawCouple>();
-  for (const c of couples) {
-    for (const ch of c.children) {
-      parentCoupleByChild.set(ch.id, c);
+  const posP = new Map<string, { x: number; y: number }>();
+  const posU = new Map<string, { x: number; y: number }>();
+
+  if (useSavedPositions) {
+    // 1. Charger les positions enregistrées pour les personnes
+    for (const p of people) {
+      if (p.positionX !== null && p.positionX !== undefined && p.positionY !== null && p.positionY !== undefined) {
+        posP.set(p.id, { x: p.positionX, y: p.positionY });
+      } else {
+        posP.set(p.id, { x: 0, y: 0 });
+      }
     }
-  }
 
-  // 1. Calculate generational rank for all persons
-  const rankMap = new Map<string, number>();
-  for (const p of people) rankMap.set(p.id, 0);
+    // 1b. FORCER L'ALIGNEMENT VERTICAL (même ligne Y) DES CONJOINTS MÊME AVEC POSITIONS SAUVEGARDÉES
+    // Si un utilisateur déplace une personne et rafraîchit, le conjoint doit obligatoirement s'aligner.
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const c of couples) {
+        if (c.partner1Id !== c.partner2Id) {
+          const p1Pos = posP.get(c.partner1Id);
+          const p2Pos = posP.get(c.partner2Id);
+          if (p1Pos && p2Pos && p1Pos.y !== p2Pos.y) {
+            const avgY = (p1Pos.y + p2Pos.y) / 2;
+            p1Pos.y = avgY;
+            p2Pos.y = avgY;
+            changed = true;
+          }
+        }
+      }
+    }
 
-  let changed = true;
-  let passes = 0;
-  while (changed && passes < 50) {
-    changed = false;
-    passes++;
+    // 2. Calculer la position des unions au milieu des conjoints ou du parent solo
+    for (const c of couples) {
+      const isSingle = c.partner1Id === c.partner2Id;
+      if (isSingle) {
+        const p1Pos = posP.get(c.partner1Id) ?? { x: 0, y: 0 };
+        posU.set(c.id, {
+          x: p1Pos.x + CARD_W / 2 - UNION_S / 2,
+          y: p1Pos.y + CARD_H + 15,
+        });
+      } else {
+        const p1Pos = posP.get(c.partner1Id) ?? { x: 0, y: 0 };
+        const p2Pos = posP.get(c.partner2Id) ?? { x: 0, y: 0 };
+        posU.set(c.id, {
+          x: (p1Pos.x + p2Pos.x + CARD_W) / 2 - UNION_S / 2,
+          y: (p1Pos.y + p2Pos.y + CARD_H) / 2 - UNION_S / 2,
+        });
+      }
+    }
+  } else {
+    // ============================================================
+    //  RECURSIVE UNION-CENTRIC SUBTREE LAYOUT (CONTOURS)
+    // ============================================================
+    const CHILD_GAP = 40;
+    const V_GAP = 220;
+
+    // 1. Mappings
+    const coupleById = new Map<string, RawCouple>(couples.map(c => [c.id, c]));
+    const couplesByPid = new Map<string, string[]>();
+    const childToCouples = new Map<string, string[]>();
 
     for (const c of couples) {
-      const r1 = rankMap.get(c.partner1Id) ?? 0;
-      const r2 = rankMap.get(c.partner2Id) ?? 0;
-      const maxP = Math.max(r1, r2);
-
-      if (r1 !== maxP) { rankMap.set(c.partner1Id, maxP); changed = true; }
-      if (c.partner1Id !== c.partner2Id && r2 !== maxP) { rankMap.set(c.partner2Id, maxP); changed = true; }
-
-      let maxC = maxP + 1;
-      for (const ch of c.children) {
-        const cr = rankMap.get(ch.id) ?? 0;
-        if (cr > maxC) maxC = cr;
+      for (const pid of [c.partner1Id, c.partner2Id]) {
+        if (!couplesByPid.has(pid)) couplesByPid.set(pid, []);
+        if (!couplesByPid.get(pid)!.includes(c.id)) couplesByPid.get(pid)!.push(c.id);
       }
-
       for (const ch of c.children) {
-        if ((rankMap.get(ch.id) ?? 0) !== maxC) {
-          rankMap.set(ch.id, maxC);
-          changed = true;
+        if (!childToCouples.has(ch.id)) childToCouples.set(ch.id, []);
+        childToCouples.get(ch.id)!.push(c.id);
+      }
+    }
+
+    // 2. BFS pour profondeur Y par personne et par couple
+    const depth = new Map<string, number>();
+    const queue: string[] = [];
+
+    for (const p of people) {
+      if (!childToCouples.has(p.id)) {
+        depth.set(p.id, 0);
+        queue.push(p.id);
+      }
+    }
+    if (queue.length === 0 && people.length > 0) {
+      depth.set(people[0].id, 0);
+      queue.push(people[0].id);
+    }
+
+    let head = 0;
+    while (head < queue.length) {
+      const pid = queue[head++];
+      const d = depth.get(pid)!;
+      for (const cid of couplesByPid.get(pid) ?? []) {
+        const c = coupleById.get(cid)!;
+        for (const ch of c.children) {
+          if (!depth.has(ch.id) || depth.get(ch.id)! < d + 1) {
+            depth.set(ch.id, d + 1);
+            queue.push(ch.id);
+          }
         }
       }
     }
-  }
+    for (const p of people) if (!depth.has(p.id)) depth.set(p.id, 0);
 
-  // Adjust root parents rank to be (minChildRank - 1)
-  for (const c of couples) {
-    if (c.children.length === 0) continue;
-    const p1HasParent = Boolean(personById.get(c.partner1Id)?.parentCoupleId);
-    const p2HasParent = c.partner1Id !== c.partner2Id && Boolean(personById.get(c.partner2Id)?.parentCoupleId);
-
-    if (!p1HasParent && !p2HasParent) {
-      let minC = 999;
-      for (const ch of c.children) {
-        const cr = rankMap.get(ch.id) ?? 0;
-        if (cr < minC) minC = cr;
-      }
-      if (minC < 999 && minC > 0) {
-        const targetR = minC - 1;
-        rankMap.set(c.partner1Id, targetR);
-        if (c.partner1Id !== c.partner2Id) rankMap.set(c.partner2Id, targetR);
+    // Harmoniser profondeur des conjoints pour alignement vertical strict (jusqu'à convergence)
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const c of couples) {
+        if (c.partner1Id !== c.partner2Id) {
+          const d1 = depth.get(c.partner1Id) ?? 0;
+          const d2 = depth.get(c.partner2Id) ?? 0;
+          if (d1 !== d2) {
+            const mx = Math.max(d1, d2);
+            depth.set(c.partner1Id, mx);
+            depth.set(c.partner2Id, mx);
+            changed = true;
+          }
+        }
       }
     }
-  }
 
-  // 2. Group persons by generation rank
-  const rankGroups = new Map<number, string[]>();
-  for (const person of people) {
-    const r = rankMap.get(person.id) ?? 0;
-    if (!rankGroups.has(r)) rankGroups.set(r, []);
-    rankGroups.get(r)!.push(person.id);
-  }
+    // 3. Calcul par Bounding Boxes (Blocs rigides indivisibles)
+    type BBox = { minX: number, maxX: number };
 
-  const sortedRanks = Array.from(rankGroups.keys()).sort((a, b) => a - b);
-  const reverseRanks = Array.from(sortedRanks).reverse();
-
-  const personPositions = new Map<string, { x: number; y: number }>();
-  const unionPositions = new Map<string, { x: number; y: number }>();
-
-  // 3. Initial placement per rank
-  for (const r of sortedRanks) {
-    const pInRank = rankGroups.get(r) || [];
-    const yLevel = r * LEVEL_GAP;
-
-    const familyGroupMap = new Map<string, string[]>();
-    for (const pid of pInRank) {
-      const parentCouple = parentCoupleByChild.get(pid);
-      const key = parentCouple ? parentCouple.id : `no_parent_${pid}`;
-      if (!familyGroupMap.has(key)) familyGroupMap.set(key, []);
-      familyGroupMap.get(key)!.push(pid);
+    function getRequiredShift(leftB: BBox, rightB: BBox, gap: number): number {
+      return leftB.maxX + gap - rightB.minX;
     }
 
-    let curX = 0;
-    for (const [key, pids] of familyGroupMap.entries()) {
-      let desiredX = curX;
-      if (!key.startsWith('no_parent_') && unionPositions.has(key)) {
-        desiredX = unionPositions.get(key)!.x + UNION_S / 2 - (pids.length * CARD_W + (pids.length - 1) * SIBLING_GAP) / 2;
+    const coupleBBox = new Map<string, BBox>();
+    const personBBox = new Map<string, BBox>();
+    const childRelX = new Map<string, number>();
+    const personCoupleRelX = new Map<string, number>();
+
+    function calcPersonBBox(personId: string, visiting = new Set<string>()): BBox {
+      if (personBBox.has(personId)) return personBBox.get(personId)!;
+      const baseBBox = { minX: -CARD_W / 2, maxX: CARD_W / 2 };
+
+      const pCouples = couplesByPid.get(personId) ?? [];
+      if (pCouples.length === 0) {
+        personBBox.set(personId, baseBBox);
+        return baseBBox;
       }
 
-      let startX = Math.max(curX, desiredX);
-      let itemX = startX;
+      let mergedBBox: BBox | null = null;
+      const tempRelX: number[] = [];
 
-      const processedInFamily = new Set<string>();
+      for (let i = 0; i < pCouples.length; i++) {
+        const cid = pCouples[i];
+        if (visiting.has(cid)) {
+          tempRelX.push(0);
+          continue;
+        }
+        visiting.add(cid);
+        const cp = calcCoupleBBox(cid, visiting);
 
-      for (let i = 0; i < pids.length; i++) {
-        const pid = pids[i];
-        if (processedInFamily.has(pid)) continue;
-
-        // Check if pid is married to a spouse in the SAME rank
-        const pCouples = (couplesByPerson.get(pid) || []).filter(
-          c => rankMap.get(c.partner1Id) === r && rankMap.get(c.partner2Id) === r
-        );
-        const spouseCouple = pCouples.find(c => c.partner1Id !== c.partner2Id);
-
-        if (spouseCouple) {
-          const spouseId = spouseCouple.partner1Id === pid ? spouseCouple.partner2Id : spouseCouple.partner1Id;
-
-          // Place Partner 1 and Partner 2 strictly adjacent with union node in between
-          personPositions.set(pid, { x: itemX, y: yLevel });
-          processedInFamily.add(pid);
-          itemX += CARD_W + SPOUSE_GAP;
-
-          unionPositions.set(spouseCouple.id, {
-            x: itemX,
-            y: yLevel + CARD_H / 2 - UNION_S / 2,
-          });
-          itemX += UNION_S + SPOUSE_GAP;
-
-          personPositions.set(spouseId, { x: itemX, y: yLevel });
-          processedInFamily.add(spouseId);
-          itemX += CARD_W + SIBLING_GAP;
+        if (!mergedBBox) {
+          mergedBBox = cp;
+          tempRelX.push(0);
         } else {
-          personPositions.set(pid, { x: itemX, y: yLevel });
-          processedInFamily.add(pid);
-          itemX += CARD_W + SIBLING_GAP;
+          const shift = getRequiredShift(mergedBBox, cp, CHILD_GAP * 2);
+          mergedBBox = { minX: mergedBBox.minX, maxX: cp.maxX + shift };
+          tempRelX.push(shift);
         }
       }
-      curX = itemX + SIBLING_GAP;
+
+      let centerShift = 0;
+      if (tempRelX.length > 0) {
+        centerShift = -(tempRelX[tempRelX.length - 1] / 2);
+      }
+      for (let i = 0; i < pCouples.length; i++) {
+        personCoupleRelX.set(pCouples[i], tempRelX[i] + centerShift);
+      }
+
+      const finalBBox = {
+        minX: Math.min(baseBBox.minX, (mergedBBox?.minX ?? 0) + centerShift),
+        maxX: Math.max(baseBBox.maxX, (mergedBBox?.maxX ?? 0) + centerShift)
+      };
+      personBBox.set(personId, finalBBox);
+      return finalBBox;
     }
-  }
 
-  // 4. Centering Pass: Center parent couples directly over their children, from bottom ranks up
-  for (const r of reverseRanks) {
-    const pInRank = rankGroups.get(r) || [];
-    for (const pid of pInRank) {
-      const pCouples = (couplesByPerson.get(pid) || []).filter(
-        c => rankMap.get(c.partner1Id) === r && rankMap.get(c.partner2Id) === r
-      );
+    function calcCoupleBBox(coupleId: string, visiting = new Set<string>()): BBox {
+      if (coupleBBox.has(coupleId)) return coupleBBox.get(coupleId)!;
 
-      for (const couple of pCouples) {
-        if (couple.children.length === 0) continue;
+      const c = coupleById.get(coupleId)!;
+      const headerW = c.partner1Id === c.partner2Id ? CARD_W : CARD_W * 2 + SPOUSE_GAP;
 
-        const childPosList = couple.children
-          .map(ch => personPositions.get(ch.id))
-          .filter((pos): pos is { x: number; y: number } => pos !== undefined);
+      let bbox = { minX: -headerW / 2, maxX: headerW / 2 };
 
-        if (childPosList.length === 0) continue;
+      if (!c.children || c.children.length === 0) {
+        coupleBBox.set(coupleId, bbox);
+        return bbox;
+      }
 
-        const minCX = Math.min(...childPosList.map(p => p.x));
-        const maxCX = Math.max(...childPosList.map(p => p.x + CARD_W));
-        const childrenCenter = (minCX + maxCX) / 2;
+      let mergedChildrenBBox: BBox | null = null;
+      const tempChRelX: number[] = [];
 
-        const isSingleParent = couple.partner1Id === couple.partner2Id;
-        const coupleW = isSingleParent ? CARD_W : CARD_W + SPOUSE_GAP + UNION_S + SPOUSE_GAP + CARD_W;
-        const startX = childrenCenter - coupleW / 2;
+      for (let i = 0; i < c.children.length; i++) {
+        const ch = c.children[i];
+        const chB = calcPersonBBox(ch.id, new Set(visiting));
 
-        if (isSingleParent) {
-          personPositions.set(couple.partner1Id, { x: startX, y: r * LEVEL_GAP });
-          unionPositions.set(couple.id, {
-            x: startX + CARD_W / 2 - UNION_S / 2,
-            y: r * LEVEL_GAP + CARD_H + 15,
-          });
+        if (!mergedChildrenBBox) {
+          mergedChildrenBBox = chB;
+          tempChRelX.push(0);
         } else {
-          const p1Pos = personPositions.get(couple.partner1Id);
-          const p2Pos = personPositions.get(couple.partner2Id);
-          const p1Left = !p1Pos || !p2Pos || p1Pos.x <= p2Pos.x;
-
-          const pLeftId = p1Left ? couple.partner1Id : couple.partner2Id;
-          const pRightId = p1Left ? couple.partner2Id : couple.partner1Id;
-
-          personPositions.set(pLeftId, { x: startX, y: r * LEVEL_GAP });
-          const uX = startX + CARD_W + SPOUSE_GAP;
-          unionPositions.set(couple.id, {
-            x: uX,
-            y: r * LEVEL_GAP + CARD_H / 2 - UNION_S / 2,
-          });
-          personPositions.set(pRightId, { x: uX + UNION_S + SPOUSE_GAP, y: r * LEVEL_GAP });
+          const shift = getRequiredShift(mergedChildrenBBox, chB, CHILD_GAP);
+          mergedChildrenBBox = { minX: mergedChildrenBBox.minX, maxX: chB.maxX + shift };
+          tempChRelX.push(shift);
         }
       }
+
+      let centerShift = 0;
+      if (tempChRelX.length > 0) {
+        centerShift = -(tempChRelX[tempChRelX.length - 1] / 2);
+      }
+      for (let i = 0; i < c.children.length; i++) {
+        childRelX.set(`${coupleId}-${c.children[i].id}`, tempChRelX[i] + centerShift);
+      }
+
+      bbox = {
+        minX: Math.min(bbox.minX, (mergedChildrenBBox?.minX ?? 0) + centerShift),
+        maxX: Math.max(bbox.maxX, (mergedChildrenBBox?.maxX ?? 0) + centerShift)
+      };
+      coupleBBox.set(coupleId, bbox);
+      return bbox;
     }
 
-    // Resolve any overlaps on rank r while preserving spouse adjacency
-    const rankPeople = pInRank.map(id => ({
-      id,
-      x: personPositions.get(id)?.x ?? 0,
-    })).sort((a, b) => a.x - b.x);
+    for (const c of couples) calcCoupleBBox(c.id);
 
-    let curX = 0;
-    const handledInRank = new Set<string>();
+    // 4. Positionnement Top-Down
+    const placedCouples = new Set<string>();
 
-    for (const rp of rankPeople) {
-      if (handledInRank.has(rp.id)) continue;
-      const pPos = personPositions.get(rp.id);
-      if (!pPos) continue;
+    function placeCoupleSubtree(coupleId: string, absX: number, parentX?: number) {
+      if (placedCouples.has(coupleId)) return;
+      placedCouples.add(coupleId);
 
-      const pCouples = (couplesByPerson.get(rp.id) || []).filter(
-        c => rankMap.get(c.partner1Id) === r && rankMap.get(c.partner2Id) === r
-      );
-      const spouseCouple = pCouples.find(c => c.partner1Id !== c.partner2Id);
+      const c = coupleById.get(coupleId)!;
+      const d1 = depth.get(c.partner1Id) ?? 0;
+      const d2 = depth.get(c.partner2Id) ?? 0;
+      const y = Math.max(d1, d2) * V_GAP;
 
-      if (spouseCouple) {
-        const spouseId = spouseCouple.partner1Id === rp.id ? spouseCouple.partner2Id : spouseCouple.partner1Id;
-        const spousePos = personPositions.get(spouseId);
+      const centerX = absX;
 
-        let p1Id = rp.id;
-        let p2Id = spouseId;
-        if (spousePos && spousePos.x < pPos.x) {
-          p1Id = spouseId;
-          p2Id = rp.id;
-        }
-
-        const p1P = personPositions.get(p1Id)!;
-        const p2P = personPositions.get(p2Id)!;
-
-        if (p1P.x < curX) {
-          p1P.x = curX;
-        }
-        const uX = p1P.x + CARD_W + SPOUSE_GAP;
-        unionPositions.set(spouseCouple.id, {
-          x: uX,
-          y: r * LEVEL_GAP + CARD_H / 2 - UNION_S / 2,
-        });
-        p2P.x = uX + UNION_S + SPOUSE_GAP;
-
-        curX = p2P.x + CARD_W + SIBLING_GAP;
-        handledInRank.add(p1Id);
-        handledInRank.add(p2Id);
+      if (c.partner1Id === c.partner2Id) {
+        posP.set(c.partner1Id, { x: centerX - CARD_W / 2, y });
+        posU.set(c.id, { x: centerX - UNION_S / 2, y: y + CARD_H + 15 });
       } else {
-        if (pPos.x < curX) {
-          pPos.x = curX;
+        // Orientation Intelligente
+        const p1HasParents = childToCouples.has(c.partner1Id) && childToCouples.get(c.partner1Id)!.length > 0;
+        const p2HasParents = childToCouples.has(c.partner2Id) && childToCouples.get(c.partner2Id)!.length > 0;
+
+        let p1OnRight = false;
+        if (parentX !== undefined) {
+          const bloodlineShouldBeOnRight = centerX < parentX;
+          if (p1HasParents && !p2HasParents) p1OnRight = bloodlineShouldBeOnRight;
+          else if (p2HasParents && !p1HasParents) p1OnRight = !bloodlineShouldBeOnRight;
+          else p1OnRight = bloodlineShouldBeOnRight;
         }
-        curX = pPos.x + CARD_W + SIBLING_GAP;
-        handledInRank.add(rp.id);
+
+        let p1X, p2X;
+        if (p1OnRight) {
+          p1X = centerX + SPOUSE_GAP / 2;
+          p2X = centerX - SPOUSE_GAP / 2 - CARD_W;
+        } else {
+          p1X = centerX - SPOUSE_GAP / 2 - CARD_W;
+          p2X = centerX + SPOUSE_GAP / 2;
+        }
+
+        posP.set(c.partner1Id, { x: p1X, y });
+        posP.set(c.partner2Id, { x: p2X, y });
+        posU.set(c.id, { x: centerX - UNION_S / 2, y: y + CARD_H / 2 - UNION_S / 2 });
+      }
+
+      for (const ch of c.children) {
+        const relX = childRelX.get(`${coupleId}-${ch.id}`) ?? 0;
+        const childAbsX = centerX + relX;
+
+        const chD = depth.get(ch.id) ?? (Math.max(d1, d2) + 1);
+        posP.set(ch.id, { x: childAbsX - CARD_W / 2, y: chD * V_GAP });
+
+        const pCouples = couplesByPid.get(ch.id) ?? [];
+        for (const chCid of pCouples) {
+          const cRelX = personCoupleRelX.get(chCid) ?? 0;
+          placeCoupleSubtree(chCid, childAbsX + cRelX, centerX);
+        }
+      }
+    }
+
+    // 5. Placement des Racines
+    const rootCouples = couples.filter(c =>
+      !childToCouples.has(c.partner1Id) && !childToCouples.has(c.partner2Id)
+    );
+
+    let mergedRootsBBox: BBox | null = null;
+
+    for (const rc of rootCouples) {
+      const bbox = coupleBBox.get(rc.id);
+      if (!bbox) continue;
+
+      let absX = 0;
+      if (mergedRootsBBox) {
+        absX = getRequiredShift(mergedRootsBBox, bbox, CHILD_GAP * 2);
+        mergedRootsBBox = { minX: mergedRootsBBox.minX, maxX: bbox.maxX + absX };
+      } else {
+        mergedRootsBBox = { minX: bbox.minX, maxX: bbox.maxX };
+      }
+      placeCoupleSubtree(rc.id, absX);
+    }
+
+    // Autres couples résiduels
+    for (const c of couples) {
+      if (!placedCouples.has(c.id)) {
+        const bbox = coupleBBox.get(c.id);
+        if (!bbox) continue;
+        let absX = 0;
+        if (mergedRootsBBox) {
+          absX = getRequiredShift(mergedRootsBBox, bbox, CHILD_GAP * 2);
+          mergedRootsBBox = { minX: mergedRootsBBox.minX, maxX: bbox.maxX + absX };
+        } else {
+          mergedRootsBBox = { minX: bbox.minX, maxX: bbox.maxX };
+        }
+        placeCoupleSubtree(c.id, absX);
+      }
+    }
+
+    // Personnes isolées sans union
+    for (const p of people) {
+      if (!posP.has(p.id)) {
+        const d = depth.get(p.id) ?? 0;
+        const bbox = { minX: -CARD_W / 2, maxX: CARD_W / 2 };
+        let absX = 0;
+        if (mergedRootsBBox) {
+          absX = getRequiredShift(mergedRootsBBox, bbox, CHILD_GAP);
+          mergedRootsBBox = { minX: mergedRootsBBox.minX, maxX: bbox.maxX + absX };
+        } else {
+          mergedRootsBBox = { minX: bbox.minX, maxX: bbox.maxX };
+        }
+        posP.set(p.id, { x: absX - CARD_W / 2, y: d * V_GAP });
       }
     }
   }
 
-  // 5. Final Union Node Centering Pass
-  for (const couple of couples) {
-    const isSingleParent = couple.partner1Id === couple.partner2Id;
-    const p1Pos = personPositions.get(couple.partner1Id);
-    const p2Pos = personPositions.get(couple.partner2Id);
+  // Final nodes and edges
 
-    if (isSingleParent && p1Pos) {
-      unionPositions.set(couple.id, {
-        x: p1Pos.x + CARD_W / 2 - UNION_S / 2,
-        y: p1Pos.y + CARD_H + 15,
-      });
-    } else if (p1Pos && p2Pos) {
-      const leftX = Math.min(p1Pos.x, p2Pos.x);
-      const rightX = Math.max(p1Pos.x, p2Pos.x);
-      const midX = (leftX + CARD_W + rightX) / 2 - UNION_S / 2;
-      unionPositions.set(couple.id, {
-        x: midX,
-        y: p1Pos.y + CARD_H / 2 - UNION_S / 2,
-      });
-    }
-  }
-
-  // 6. Build React Flow Nodes and Edges
   const nodes: Node[] = [];
   const edges: Edge[] = [];
+  const GROUP_PAD = 8;
+
+  // Single family bounding rectangle per couple + children
+  for (const c of couples) {
+    const familyMemberIds = new Set<string>();
+    familyMemberIds.add(c.partner1Id);
+    if (c.partner1Id !== c.partner2Id) familyMemberIds.add(c.partner2Id);
+    for (const ch of c.children) familyMemberIds.add(ch.id);
+
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity, count = 0;
+    for (const id of familyMemberIds) {
+      const pos = posP.get(id);
+      if (pos) {
+        count++;
+        minX = Math.min(minX, pos.x);
+        minY = Math.min(minY, pos.y);
+        maxX = Math.max(maxX, pos.x + CARD_W);
+        maxY = Math.max(maxY, pos.y + CARD_H);
+      }
+    }
+
+    if (count > 0) {
+      nodes.push({
+        id: `group-${c.id}`,
+        type: 'familyGroup',
+        position: { x: minX - GROUP_PAD, y: minY - GROUP_PAD },
+        style: { zIndex: -1 },
+        selectable: false,
+        focusable: false,
+        draggable: false,
+        data: {
+          coupleId: c.id,
+          width: (maxX - minX) + GROUP_PAD * 2,
+          height: (maxY - minY) + GROUP_PAD * 2,
+        },
+      });
+    }
+  }
 
   for (const p of people) {
-    const pos = personPositions.get(p.id) || { x: 0, y: 0 };
     nodes.push({
       id: p.id,
       type: 'person',
-      position: pos,
-      data: { ...p, cardLayout },
+      position: posP.get(p.id) ?? { x: 0, y: 0 },
+      data: { ...p },
     });
   }
 
+  const spouseStyle = (isSep: boolean) => isSep
+    ? { stroke: '#8c387b', strokeWidth: 2, strokeDasharray: '6 4' }
+    : { stroke: '#5c2456', strokeWidth: 2.5 };
+
+  function getCoupleChildColor(coupleId: string): string {
+    let hash = 0;
+    for (let i = 0; i < coupleId.length; i++) {
+      hash = coupleId.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const hue = Math.abs(hash) % 360;
+    return `hsl(${hue}, 65%, 42%)`;
+  }
+
   for (const c of couples) {
-    const uPos = unionPositions.get(c.id) || { x: 0, y: 0 };
-    const unionNodeId = `union-${c.id}`;
+    const unionId = `union-${c.id}`;
+    const uPos = posU.get(c.id) ?? { x: 0, y: 0 };
     const isSep = Boolean(c.isSeparated);
-    const isSingleParent = c.partner1Id === c.partner2Id;
+    const isSingle = c.partner1Id === c.partner2Id;
 
     nodes.push({
-      id: unionNodeId,
+      id: unionId,
       type: 'union',
       position: uPos,
       data: {
@@ -334,73 +463,46 @@ export function buildFamilyGraph(
         partner1Id: c.partner1Id,
         partner2Id: c.partner2Id,
         isSeparated: isSep,
-        isSingleParent,
+        isSingleParent: isSingle,
         children: c.children,
       },
     });
 
-    const spouseEdgeStyle = isSep
-      ? { stroke: '#8c387b', strokeWidth: 2, strokeDasharray: '6 4' }
-      : { stroke: '#5c2456', strokeWidth: 2.5 };
-
-    const childEdgeStyle = { stroke: '#7bb686', strokeWidth: 2.5 };
-
-    if (isSingleParent) {
+    if (isSingle) {
       edges.push({
-        id: `edge-${c.partner1Id}-${unionNodeId}`,
-        source: c.partner1Id,
-        target: unionNodeId,
-        sourceHandle: 'bottom-source',
-        targetHandle: 'union-top',
-        type: 'straight',
-        style: spouseEdgeStyle,
+        id: `e-${c.partner1Id}-${unionId}`,
+        source: c.partner1Id, sourceHandle: 'bottom-source',
+        target: unionId, targetHandle: 'union-top',
+        type: 'straight', style: spouseStyle(isSep),
       });
     } else {
-      const p1Pos = personPositions.get(c.partner1Id);
-      const p2Pos = personPositions.get(c.partner2Id);
-
-      let p1SourceHandle = 'right-source';
-      let p2SourceHandle = 'left-source';
-      let u1TargetHandle = 'union-left';
-      let u2TargetHandle = 'union-right';
-
-      if (p1Pos && p2Pos && p1Pos.x > p2Pos.x) {
-        p1SourceHandle = 'left-source';
-        u1TargetHandle = 'union-right';
-        p2SourceHandle = 'right-source';
-        u2TargetHandle = 'union-left';
-      }
+      const p1Pos = posP.get(c.partner1Id);
+      const p2Pos = posP.get(c.partner2Id);
+      const p1OnLeft = !p1Pos || !p2Pos || p1Pos.x <= p2Pos.x;
 
       edges.push({
-        id: `edge-${c.partner1Id}-${unionNodeId}`,
-        source: c.partner1Id,
-        target: unionNodeId,
-        sourceHandle: p1SourceHandle,
-        targetHandle: u1TargetHandle,
-        type: 'straight',
-        style: spouseEdgeStyle,
+        id: `e-${c.partner1Id}-${unionId}`,
+        source: c.partner1Id, sourceHandle: p1OnLeft ? 'right-source' : 'left-source',
+        target: unionId, targetHandle: p1OnLeft ? 'union-left' : 'union-right',
+        type: 'straight', style: spouseStyle(isSep),
       });
-
       edges.push({
-        id: `edge-${c.partner2Id}-${unionNodeId}`,
-        source: c.partner2Id,
-        target: unionNodeId,
-        sourceHandle: p2SourceHandle,
-        targetHandle: u2TargetHandle,
-        type: 'straight',
-        style: spouseEdgeStyle,
+        id: `e-${c.partner2Id}-${unionId}`,
+        source: c.partner2Id, sourceHandle: p1OnLeft ? 'left-source' : 'right-source',
+        target: unionId, targetHandle: p1OnLeft ? 'union-right' : 'union-left',
+        type: 'straight', style: spouseStyle(isSep),
       });
     }
 
-    for (const child of c.children) {
+    const coupleChildColor = getCoupleChildColor(c.id);
+    const childStyle = { stroke: coupleChildColor, strokeWidth: 2.5 };
+
+    for (const ch of c.children) {
       edges.push({
-        id: `edge-${unionNodeId}-${child.id}`,
-        source: unionNodeId,
-        target: child.id,
-        sourceHandle: 'union-bottom',
-        targetHandle: 'top-target',
-        type: 'step',
-        style: childEdgeStyle,
+        id: `e-${unionId}-${ch.id}`,
+        source: unionId, sourceHandle: 'union-bottom',
+        target: ch.id, targetHandle: 'top-target',
+        type: 'step', style: childStyle,
       });
     }
   }

@@ -18,21 +18,23 @@ import 'reactflow/dist/style.css';
 
 import PersonNode, { PersonNodeData } from './PersonNode';
 import UnionNode, { UnionNodeData } from './UnionNode';
+import FamilyGroupNode from './FamilyGroupNode';
 import EditPersonModal from './EditPersonModal';
 import CreateCoupleModal from './CreateCoupleModal';
 import AddPersonButton from './AddPersonButton';
 import PeopleListModal from './PeopleListModal';
 import AuthModal from './AuthModal';
-import { deletePerson, updatePersonPosition } from '@/actions/personActions';
+import { deletePerson, updatePersonPosition, resetAllPositions, saveAllPositions } from '@/actions/personActions';
 import { deleteCouple, addChildToCouple, addChildToPerson, removeChildFromCouple, toggleCoupleSeparated } from '@/actions/coupleActions';
 import { logout } from '@/actions/authActions';
 import { buildFamilyGraph, RawCouple } from '@/lib/familyLayout';
-import { GitFork, Users, Lock, Unlock, RectangleHorizontal, RectangleVertical, Heart, Wand2, Menu, X, Baby, Sprout, Loader2 } from 'lucide-react';
+import { GitFork, Users, Lock, Unlock, Heart, Menu, X, Baby, Sprout, Loader2, RotateCcw, Wand2 } from 'lucide-react';
 import InstallPwaButton from './InstallPwaButton';
 
 const nodeTypes = {
   person: PersonNode,
   union: UnionNode,
+  familyGroup: FamilyGroupNode,
 };
 
 type Props = {
@@ -57,30 +59,49 @@ function FamilyCanvasInner({ initialNodes, initialEdges, people, rawCouples, isA
   const [addChildTargetCoupleId, setAddChildTargetCoupleId] = useState<string | null>(null);
   const [addChildTargetPersonId, setAddChildTargetPersonId] = useState<string | null>(null);
   const [showPeopleList, setShowPeopleList] = useState(false);
-  const [organizeLoading, setOrganizeLoading] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(!isAuthenticated);
-  const [cardLayout, setCardLayout] = useState<'horizontal' | 'vertical'>('horizontal');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
+  const [autoLayoutLoading, setAutoLayoutLoading] = useState(false);
 
-  // Set vertical mode by default on mobile devices
-  useEffect(() => {
-    if (typeof window !== 'undefined' && window.innerWidth < 768) {
-      setCardLayout('vertical');
-      const { nodes: newNodes, edges: newEdges } = buildFamilyGraph(people, rawCouples, 'vertical');
-      setNodes(newNodes);
-      setEdges(newEdges);
-      setTimeout(() => { fitView({ padding: 0.3, duration: 600 }); }, 100);
-    }
+  const [selectedCoupleId, setSelectedCoupleId] = useState<string | null>(null);
+
+  const handleSelectCouple = useCallback((coupleId: string) => {
+    setSelectedCoupleId(prev => (prev === coupleId ? null : coupleId));
   }, []);
 
-  const handleToggleLayout = () => {
-    const nextLayout = cardLayout === 'horizontal' ? 'vertical' : 'horizontal';
-    setCardLayout(nextLayout);
-    const { nodes: newNodes, edges: newEdges } = buildFamilyGraph(people, rawCouples, nextLayout);
-    setNodes(newNodes);
-    setEdges(newEdges);
-    setTimeout(() => { fitView({ padding: 0.3, duration: 600 }); }, 50);
-    setMobileMenuOpen(false);
+  const handleAutoLayout = async () => {
+    setAutoLayoutLoading(true);
+    try {
+      const { nodes: newNodes, edges: newEdges } = buildFamilyGraph(people, rawCouples, { forceAutoLayout: true });
+      setNodes(newNodes);
+      setEdges(newEdges);
+
+      const positionsToSave = newNodes
+        .filter(n => n.type === 'person')
+        .map(n => ({ id: n.id, x: n.position.x, y: n.position.y }));
+
+      await saveAllPositions(positionsToSave);
+      setTimeout(() => fitView({ padding: 0.3, duration: 400 }), 50);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setAutoLayoutLoading(false);
+      setMobileMenuOpen(false);
+    }
+  };
+
+  const handleResetPositions = async () => {
+    if (!confirm('Voulez-vous vraiment réinitialiser toutes les positions sous forme de grille ?')) return;
+    setIsResetting(true);
+    try {
+      await resetAllPositions();
+      window.location.reload();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsResetting(false);
+    }
   };
 
   const handleLogout = async () => {
@@ -88,23 +109,10 @@ function FamilyCanvasInner({ initialNodes, initialEdges, people, rawCouples, isA
     window.location.reload();
   };
 
-  const handleAutoOrganize = async () => {
-    setOrganizeLoading(true);
-    try {
-      const { nodes: newNodes, edges: newEdges } = buildFamilyGraph(people, rawCouples, cardLayout);
-      setNodes(newNodes);
-      setEdges(newEdges);
-      for (const node of newNodes) {
-        if (node.type === 'person') {
-          updatePersonPosition(node.id, node.position.x, node.position.y);
-        }
-      }
-      setTimeout(() => { fitView({ padding: 0.3, duration: 800 }); }, 100);
-    } finally {
-      setOrganizeLoading(false);
-      setMobileMenuOpen(false);
-    }
-  };
+  const onNodeDrag: NodeDragHandler = useCallback((_, node) => {
+    if (node.type !== 'person') return;
+    setNodes(nds => nds.map(n => (n.id === node.id ? { ...n, position: node.position } : n)));
+  }, [setNodes]);
 
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -136,12 +144,22 @@ function FamilyCanvasInner({ initialNodes, initialEdges, people, rawCouples, isA
   const handleRemoveChildFromCouple = useCallback(async (childId: string) => { await removeChildFromCouple(childId); }, []);
 
   const nodesWithCallbacks = nodes.map(node => {
+    if (node.type === 'familyGroup') {
+      const isVisible = selectedCoupleId === node.data.coupleId || Boolean(node.selected);
+      return {
+        ...node,
+        hidden: !isVisible,
+        data: {
+          ...node.data,
+          isVisible,
+        },
+      };
+    }
     if (node.type === 'person') {
       return {
         ...node,
         data: {
           ...node.data,
-          cardLayout,
           onEdit: isAuthenticated ? handleEdit : undefined,
           onDelete: isAuthenticated ? handleDeletePerson : undefined,
           onCreateCouple: isAuthenticated ? handleStartCreateCouple : undefined,
@@ -151,10 +169,13 @@ function FamilyCanvasInner({ initialNodes, initialEdges, people, rawCouples, isA
       };
     }
     if (node.type === 'union') {
+      const isSelected = selectedCoupleId === node.data.coupleId || Boolean(node.selected);
       return {
         ...node,
+        selected: isSelected,
         data: {
           ...node.data,
+          onSelectCouple: handleSelectCouple,
           onAddChild: isAuthenticated ? handleOpenAddChild : undefined,
           onDeleteCouple: isAuthenticated ? handleDeleteCouple : undefined,
           onToggleSeparated: isAuthenticated ? handleToggleSeparated : undefined,
@@ -164,6 +185,10 @@ function FamilyCanvasInner({ initialNodes, initialEdges, people, rawCouples, isA
     }
     return node;
   });
+
+
+
+
 
   const editingPerson = people.find(p => p.id === editingPersonId) ?? null;
 
@@ -202,17 +227,6 @@ function FamilyCanvasInner({ initialNodes, initialEdges, people, rawCouples, isA
             <Users size={15} /> <span style={{ fontWeight: '700' }}>{people.length}</span>
           </button>
 
-          {/* Card Layout format toggle (Horizontal / Vertical) */}
-          <button
-            onClick={handleToggleLayout}
-            className="header-btn"
-            title="Format des cartes (Horizontale / Verticale)"
-          >
-            {cardLayout === 'vertical' ? <RectangleVertical size={15} /> : <RectangleHorizontal size={15} />}
-            <span className="desktop-only" style={{ marginLeft: '4px' }}>
-              {cardLayout === 'vertical' ? 'Vertical' : 'Horizontal'}
-            </span>
-          </button>
 
           {/* Desktop specific buttons */}
           {isAuthenticated && (
@@ -225,11 +239,19 @@ function FamilyCanvasInner({ initialNodes, initialEdges, people, rawCouples, isA
                 <Heart size={15} /> Former un couple
               </button>
               <button
-                onClick={handleAutoOrganize}
-                disabled={organizeLoading}
+                onClick={handleAutoLayout}
+                disabled={autoLayoutLoading}
+                className="header-btn desktop-only"
+                style={{ background: 'rgba(85, 107, 47, 0.12)', borderColor: 'rgba(85, 107, 47, 0.25)', color: '#556b2f' }}
+              >
+                {autoLayoutLoading ? <Loader2 size={15} className="animate-spin" /> : <Wand2 size={15} />} Mise en forme auto
+              </button>
+              <button
+                onClick={handleResetPositions}
+                disabled={isResetting}
                 className="header-btn desktop-only"
               >
-                {organizeLoading ? <Loader2 size={15} className="animate-spin" /> : <Wand2 size={15} />} Auto-organiser
+                {isResetting ? <Loader2 size={15} className="animate-spin" /> : <RotateCcw size={15} />} Réinitialiser
               </button>
             </>
           )}
@@ -297,12 +319,20 @@ function FamilyCanvasInner({ initialNodes, initialEdges, people, rawCouples, isA
               <Heart size={15} /> Former un couple
             </button>
             <button
-              onClick={handleAutoOrganize}
-              disabled={organizeLoading}
+              onClick={handleAutoLayout}
+              disabled={autoLayoutLoading}
+              className="header-btn"
+              style={{ width: '100%', justifyContent: 'flex-start', background: 'rgba(85, 107, 47, 0.12)', color: '#556b2f', padding: '0.6rem 0.8rem' }}
+            >
+              {autoLayoutLoading ? <Loader2 size={15} className="animate-spin" /> : <Wand2 size={15} />} Mise en forme auto
+            </button>
+            <button
+              onClick={handleResetPositions}
+              disabled={isResetting}
               className="header-btn"
               style={{ width: '100%', justifyContent: 'flex-start', padding: '0.6rem 0.8rem' }}
             >
-              {organizeLoading ? <Loader2 size={15} className="animate-spin" /> : <Wand2 size={15} />} Auto-organiser par génération
+              {isResetting ? <Loader2 size={15} className="animate-spin" /> : <RotateCcw size={15} />} Réinitialiser les positions
             </button>
           </div>
         </div>
@@ -313,6 +343,8 @@ function FamilyCanvasInner({ initialNodes, initialEdges, people, rawCouples, isA
         edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
+        onPaneClick={() => setSelectedCoupleId(null)}
+        onNodeDrag={onNodeDrag}
         onNodeDragStop={onNodeDragStop}
         nodesDraggable={isAuthenticated}
         nodeTypes={nodeTypes}

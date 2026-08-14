@@ -11,6 +11,7 @@ export type UnionNodeData = {
   partner2Id: string;
   isSeparated?: boolean;
   children: { id: string; firstName: string; lastName?: string | null }[];
+  onSelectCouple?: (coupleId: string) => void;
   onAddChild?: (coupleId: string) => void;
   onDeleteCouple?: (coupleId: string) => void;
   onToggleSeparated?: (coupleId: string, isSeparated: boolean) => void;
@@ -61,6 +62,7 @@ function UnionNode({ data, selected }: NodeProps<UnionNodeData>) {
       <div
         onClick={(e) => {
           e.stopPropagation();
+          data.onSelectCouple?.(data.coupleId);
           if (hasActions) {
             setShowMenu(prev => !prev);
           }
@@ -75,8 +77,8 @@ function UnionNode({ data, selected }: NodeProps<UnionNodeData>) {
           border: selected
             ? '2px solid var(--text-primary)'
             : isSep
-            ? '2px dashed rgba(60,46,28,0.6)'
-            : '2px solid rgba(60,46,28,0.5)',
+              ? '2px dashed rgba(60,46,28,0.6)'
+              : '2px solid rgba(60,46,28,0.5)',
           boxShadow: isSep
             ? '0 0 10px rgba(196,154,60,0.5)'
             : '0 0 10px rgba(192,120,90,0.5)',
